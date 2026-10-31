@@ -1,0 +1,9 @@
+# 含真實收支與薪資數字，不可上傳到公開 repo
+docs/
+design/
+*.json
+!manifest.webmanifest
+
+# 本機產生的暫存
+__pycache__/
+.DS_Store

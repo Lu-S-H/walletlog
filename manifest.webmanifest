@@ -1,0 +1,16 @@
+{
+  "name": "錢包日誌",
+  "short_name": "錢包日誌",
+  "description": "記錄每天的收支與薪資明細，資料只存在手機上。",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4F4EF",
+  "theme_color": "#F4F4EF",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
