@@ -12,6 +12,7 @@ export function defaultSettings() {
     hideSalary: true,
     hideSummary: true, // 首頁本月支出／收入／結餘／日均預設顯示 ****
     lastPayment: null,
+    salaryPayment: null,
     lastBackupAt: null,
     backupSnoozeUntil: null,
     onboarded: false,

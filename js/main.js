@@ -7,7 +7,7 @@ import { openAddSheet } from './views/add.js';
 import { currentMonth, renderList } from './views/list.js';
 import { renderMore } from './views/more.js';
 import { renderOnboarding } from './views/onboarding.js';
-import { renderSalary } from './views/placeholder.js';
+import { renderSalary } from './views/salary.js';
 import { renderStats } from './views/stats.js';
 
 const TABS = {

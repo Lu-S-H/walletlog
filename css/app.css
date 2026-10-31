@@ -649,3 +649,38 @@ main {
 .ys-sheet[open] .ys-chev { transform: rotate(90deg); }
 .ys-sheet[open] .ys-summary-n { visibility: hidden; }
 .ys-foot { font-size: 11.5px; color: var(--muted); margin: var(--s3) 0 0; line-height: 1.4; }
+
+/* ============ 薪資 ============ */
+.sal-hero {
+  position: relative; overflow: hidden; background: var(--ink); color: var(--on-ink);
+  border-radius: 24px; padding: 16px 18px 14px; margin-bottom: var(--s2);
+}
+.sal-hero[role="button"] { cursor: pointer; }
+:root[data-theme="dark"] .sal-hero { box-shadow: inset 0 0 0 1px rgb(233 196 106 / 22%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sal-hero { box-shadow: inset 0 0 0 1px rgb(233 196 106 / 22%); } }
+.sal-hero::after {
+  content: ""; position: absolute; right: -70px; top: -80px; width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, var(--acc) 0, transparent 70%); opacity: .25; pointer-events: none;
+}
+.sal-hero-top { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); font-size: 13px; color: var(--on-ink-muted); }
+.sal-hero-num { font-size: 38px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin: 2px 0 8px; }
+.sal-hero-sub { display: flex; flex-wrap: wrap; gap: 4px var(--s4); font-size: 12px; color: var(--on-ink-muted); }
+.sal-hero-sub b { color: var(--on-ink); font-weight: 700; font-size: 14px; margin-left: 2px; }
+.alias { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 6px; }
+.row .value.neg { color: var(--text); }
+.link.small { font-size: 13px; min-height: 32px; margin: -10px -8px; }
+.sal-more { margin-top: var(--s3); }
+
+/* 薪資單編輯 */
+.sl-net { background: var(--ink); color: var(--on-ink); border-radius: 20px; padding: 14px 16px; margin-top: var(--s3); display: flex; flex-direction: column; gap: 2px; }
+.sl-net-l, .sl-net-s { font-size: 12px; color: var(--on-ink-muted); }
+.sl-net-v { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
+.sl-row label em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 6px; }
+.sl-row input { flex: 0 1 38%; font-weight: 600; }
+.sl-sign { color: var(--muted); flex: none; width: 10px; text-align: right; }
+.sl-del { border: 0; background: none; color: var(--muted); width: 32px; height: 32px; margin-right: -8px; display: grid; place-items: center; flex: none; }
+.sl-del .icon { width: 16px; height: 16px; }
+.sl-add { margin-top: var(--s2); }
+.sl-add button { min-height: 32px; font-size: 13px; font-weight: 500; }
+.sl-sum { color: var(--text); }
+.field input.wide { flex: 1 1 100%; text-align: left; }

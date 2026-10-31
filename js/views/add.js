@@ -4,8 +4,9 @@ import { icon } from '../icons.js';
 import { categoryUsage, lastUseOfNote, paymentUsage, sortByUsage, suggestNotes } from '../ledger.js';
 import * as store from '../store.js';
 import { state } from '../store.js';
-import { alertMsg, bindSegmented, confirmDanger, openSheet, toast } from '../ui.js';
+import { bindSegmented, confirmDanger, openSheet, toast } from '../ui.js';
 import { diffDays, fmt, formatShortDate, html, setHTML, todayStr, uid, weekdayName } from '../util.js';
+import { openSlipEditor } from './slip.js';
 import { openTagPicker } from './tags.js';
 
 const MAX_DIGITS = 9;
@@ -13,8 +14,12 @@ const MAX_DIGITS = 9;
 /** openAddSheet({ date })：新增；openAddSheet({ tx })：編輯既有明細 */
 export function openAddSheet({ tx = null, date = todayStr(), type = 'expense' } = {}) {
   if (tx?.salaryId) {
-    alertMsg('這筆是薪資單自動產生的', '請到「薪資」頁修改對應的薪資單，這筆收入會自動更新。');
-    return;
+    // 薪資單連結的收入：直接開薪資單編輯（金額、日期由薪資單決定）
+    const slip = state.salarySlips.find((s) => s.id === tx.salaryId);
+    if (slip) {
+      openSlipEditor({ slip });
+      return;
+    }
   }
   const s = state.settings;
   const f = {
