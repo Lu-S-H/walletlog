@@ -120,6 +120,16 @@ export function deleteSlip(slip, withTx) {
   store.remove('salarySlips', slip.id);
 }
 
+/**
+ * 還沒有薪資單的薪水收入：開始使用薪資單之後（最早一張薪資單的入帳日起）入帳、分類是薪水、沒有連結薪資單的收入。
+ * 還沒用過薪資功能時回傳空陣列（不提醒）。
+ */
+export function unlinkedSalaryTx() {
+  const firstPay = state.salarySlips.map((s) => s.payDate).filter(Boolean).sort()[0];
+  if (!firstPay) return [];
+  return state.transactions.filter((t) => t.type === 'income' && t.category === SALARY_CATEGORY && !t.salaryId && t.date >= firstPay);
+}
+
 // ---------- Excel 薪資歷史匯入 ----------
 export const IMPORT_APP = 'walletlog-salary';
 

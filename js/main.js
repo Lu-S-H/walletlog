@@ -4,6 +4,7 @@ import { icon } from './icons.js';
 import { toast } from './ui.js';
 import { html, setHTML, thisMonth, todayStr } from './util.js';
 import { openAddSheet } from './views/add.js';
+import { renderHome } from './views/home.js';
 import { currentMonth, renderList } from './views/list.js';
 import { renderMore } from './views/more.js';
 import { renderOnboarding } from './views/onboarding.js';
@@ -11,6 +12,7 @@ import { renderSalary } from './views/salary.js';
 import { renderStats } from './views/stats.js';
 
 const TABS = {
+  home: { label: '首頁', icon: 'home', render: renderHome },
   list: { label: '明細', icon: 'list', render: renderList },
   stats: { label: '統計', icon: 'stats', render: renderStats },
   salary: { label: '薪資', icon: 'wallet', render: renderSalary },
@@ -24,6 +26,7 @@ const onbEl = document.getElementById('onb');
 const viewEl = document.getElementById('view');
 const bannerEl = document.getElementById('top-banner');
 const tabbarEl = document.getElementById('tabbar');
+const fabEl = document.getElementById('fab');
 
 let waitingWorker = null;
 
@@ -36,7 +39,7 @@ function route() {
   } catch {
     sub = '';
   }
-  return TABS[tab] ? { tab, sub } : { tab: 'list', sub: '' };
+  return TABS[tab] ? { tab, sub } : { tab: 'home', sub: '' };
 }
 
 function applyTheme() {
@@ -54,12 +57,7 @@ function renderTabbar() {
   const cur = route().tab;
   const tab = (k) =>
     html`<button type="button" class="tab" data-tab="${k}" ${k === cur ? 'aria-current="page"' : ''}>${icon(TABS[k].icon)}<span>${TABS[k].label}</span></button>`;
-  setHTML(
-    tabbarEl,
-    html`${tab('list')}${tab('stats')}
-      <div class="tab-add"><button type="button" data-add aria-label="記一筆">${icon('plus')}</button></div>
-      ${tab('salary')}${tab('more')}`,
-  );
+  setHTML(tabbarEl, html`${Object.keys(TABS).map(tab)}`);
 }
 
 function renderBanner() {
@@ -101,13 +99,14 @@ function scheduleRender() {
   });
 }
 
+// 右下角的「＋」：記一筆。在明細頁看其他月份時，預設記在那個月的 1 號（看本月時是今天）
+setHTML(fabEl, html`${icon('plus')}`);
+fabEl.addEventListener('click', () => {
+  const m = route().tab === 'list' ? currentMonth() : thisMonth();
+  openAddSheet({ date: m === thisMonth() ? todayStr() : `${m}-01` });
+});
+
 tabbarEl.addEventListener('click', (e) => {
-  if (e.target.closest('[data-add]')) {
-    // 在明細頁看其他月份時，預設記在那個月的 1 號（看本月時是今天）
-    const m = route().tab === 'list' ? currentMonth() : thisMonth();
-    openAddSheet({ date: m === thisMonth() ? todayStr() : `${m}-01` });
-    return;
-  }
   const t = e.target.closest('[data-tab]')?.dataset.tab;
   if (!t) return;
   if (t === route().tab && !route().sub) {

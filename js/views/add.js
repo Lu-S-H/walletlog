@@ -11,8 +11,11 @@ import { openTagPicker } from './tags.js';
 
 const MAX_DIGITS = 9;
 
-/** openAddSheet({ date })：新增；openAddSheet({ tx })：編輯既有明細 */
-export function openAddSheet({ tx = null, date = todayStr(), type = 'expense' } = {}) {
+/**
+ * openAddSheet({ date })：新增；openAddSheet({ tx })：編輯既有明細；
+ * preset = { category, note, amount, payment }：首頁「快速記一筆」預先帶入（仍可修改後再按完成）
+ */
+export function openAddSheet({ tx = null, date = todayStr(), type = 'expense', preset = null } = {}) {
   if (tx?.salaryId) {
     // 薪資單連結的收入：直接開薪資單編輯（金額、日期由薪資單決定）
     const slip = state.salarySlips.find((s) => s.id === tx.salaryId);
@@ -24,10 +27,10 @@ export function openAddSheet({ tx = null, date = todayStr(), type = 'expense' } 
   const s = state.settings;
   const f = {
     type: tx?.type || type,
-    expr: tx ? String(tx.amount) : '',
-    category: tx?.category || null,
-    payment: tx ? tx.payment : defaultPayment(),
-    note: tx?.note || '',
+    expr: tx ? String(tx.amount) : preset?.amount ? String(preset.amount) : '',
+    category: tx?.category || preset?.category || null,
+    payment: tx ? tx.payment : preset?.payment ?? defaultPayment(),
+    note: tx?.note || preset?.note || '',
     date: tx?.date || date,
     tags: [...(tx?.tags || [])],
   };

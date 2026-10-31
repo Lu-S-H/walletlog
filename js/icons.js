@@ -2,6 +2,7 @@ import { raw } from './util.js';
 
 // 單色線條圖示（24×24，線寬 1.75），顏色跟隨文字色 currentColor
 const PATHS = {
+  home: '<path d="M4 10.5L12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-6h-6v6H5.5A1.5 1.5 0 0 1 4 19z"/>',
   list: '<path d="M8.5 6.5h11M8.5 12h11M8.5 17.5h11"/><circle cx="4.75" cy="6.5" r="1" fill="currentColor" stroke="none"/><circle cx="4.75" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4.75" cy="17.5" r="1" fill="currentColor" stroke="none"/>',
   stats: '<path d="M4 20.5h16"/><rect x="5" y="11" width="3.5" height="6.5" rx="1"/><rect x="10.25" y="5" width="3.5" height="12.5" rx="1"/><rect x="15.5" y="8.5" width="3.5" height="9" rx="1"/>',
   wallet: '<rect x="3.5" y="6" width="17" height="13.5" rx="3"/><path d="M3.5 10h17M15.5 14.75h2"/><path d="M6 6l9.5-2.5 1 2.5"/>',

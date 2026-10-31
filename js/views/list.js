@@ -1,5 +1,5 @@
 // 明細（首頁）：月收支總覽＋每日支出長條＋依日期分組的明細
-import { backupReminder, exportBackup, pickBackupFile, snoozeBackupReminder } from '../backup.js';
+import { pickBackupFile } from '../backup.js';
 import { icon } from '../icons.js';
 import { dailyNet, elapsedDays, groupByDay, totals, txOfMonth } from '../ledger.js';
 import { bindRevealToggle, canHide, isHidden, money } from '../privacy.js';
@@ -24,20 +24,11 @@ export function renderList(el) {
   const maxDay = daily.indexOf(max) + 1;
   const today = todayStr();
   const groups = groupByDay(list);
-  const remind = backupReminder();
   const hide = isHidden();
 
   setHTML(
     el,
-    html`${remind
-        ? html`<div class="banner" role="status">
-            <div class="grow"><div>${remind.never ? '還沒有備份過' : `已經 ${remind.days} 天沒有備份`}</div>
-              <div class="note">資料只存在這支手機，刪除 App 或換手機就會遺失。</div></div>
-            <button type="button" class="link strong" data-backup>備份</button>
-            <button type="button" class="link" data-snooze>明天</button>
-          </div>`
-        : ''}
-      <header class="month-head">
+    html`<header class="month-head">
         <button type="button" class="icon-btn" data-month="-1" aria-label="上個月">${icon('chevronLeft')}</button>
         <label class="month-pick"><h1 class="page-title">${formatMonth(curMonth)}</h1>
           <input type="month" value="${curMonth}" aria-label="選擇月份"></label>
@@ -83,7 +74,7 @@ export function renderList(el) {
           : html`<div class="empty-box welcome">
               <p class="big-emoji">👛</p>
               <p><b>開始記帳吧</b></p>
-              <p class="note">按下方的「＋」記第一筆。<br>之前用電腦版 AI記帳 的話，可以直接匯入舊資料。</p>
+              <p class="note">按右下角的「＋」記第一筆。<br>之前用電腦版 AI記帳 的話，可以直接匯入舊資料。</p>
               <div class="actions">
                 <button type="button" class="btn-primary" data-add>記第一筆</button>
                 <button type="button" class="btn-secondary" data-import>匯入電腦版 AI記帳 備份</button>
@@ -104,8 +95,6 @@ export function renderList(el) {
     renderList(el);
   });
   el.querySelector('[data-search]').addEventListener('click', () => openSearch());
-  el.querySelector('[data-backup]')?.addEventListener('click', () => exportBackup());
-  el.querySelector('[data-snooze]')?.addEventListener('click', () => snoozeBackupReminder());
   el.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => openAddSheet()));
   el.querySelector('[data-import]')?.addEventListener('click', () => pickBackupFile());
   el.querySelector('.spark-bars').addEventListener('click', (e) => {

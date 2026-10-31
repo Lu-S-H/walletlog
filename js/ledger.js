@@ -156,6 +156,61 @@ export function monthsWithData() {
   return new Set(state.transactions.map((t) => monthOf(t.date)));
 }
 
+// ---------- 首頁 ----------
+/**
+ * 上一個月的「同期」：看本月時只算上月 1 號到今天同一天，過去的月份算整個上月。
+ * 回傳 { net, income, label } 或 null（上月沒有明細）
+ */
+export function prevMonthSamePeriod(month) {
+  const [y, m] = month.split('-').map(Number);
+  const prev = new Date(y, m - 2, 1);
+  const pm = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+  let list = txOfMonth(pm);
+  if (!list.length) return null;
+  let label = `${prev.getMonth() + 1}月`;
+  if (month === thisMonth()) {
+    const day = todayStr().slice(8, 10);
+    list = list.filter((t) => t.date.slice(8, 10) <= day);
+    label = `${prev.getMonth() + 1}/1–${Number(day)}`;
+  }
+  const t = totals(list);
+  return { net: t.net, income: t.income, label };
+}
+
+const MEAL_CATS = new Set(['早餐', '午餐', '晚餐', '宵夜']);
+
+/**
+ * 快速記一筆的推薦：最近 90 天常記的「備註＋分類」組合，依現在時段加權
+ * （早上推早餐、中午推午餐…，非用餐分類照次數）。回傳 [{ note, category, amount, payment, count, multi }]
+ * multi：這個備註也用在其他分類，顯示時要加上分類名稱
+ */
+export function quickSuggestions(limit = 4, now = new Date()) {
+  const from = new Date(now);
+  from.setDate(from.getDate() - 90);
+  const fromStr = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-${String(from.getDate()).padStart(2, '0')}`;
+  const groups = new Map();
+  for (const t of state.transactions) {
+    if (t.type !== 'expense' || !t.note || t.date < fromStr || t.salaryId) continue;
+    const key = `${t.note}|${t.category}`;
+    let g = groups.get(key);
+    if (!g) groups.set(key, (g = { note: t.note, category: t.category, count: 0, amounts: new Map(), payments: new Map() }));
+    g.count++;
+    g.amounts.set(t.amount, (g.amounts.get(t.amount) || 0) + 1);
+    if (t.payment) g.payments.set(t.payment, (g.payments.get(t.payment) || 0) + 1);
+  }
+  const meal = mealByTime(now);
+  const top = (m) => [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  // 同一個備註用在多個分類（例如 seven 早餐／seven 飲料）時，按鈕上要標分類
+  const catsOfNote = new Map();
+  for (const g of groups.values()) catsOfNote.set(g.note, (catsOfNote.get(g.note) || 0) + 1);
+  return [...groups.values()]
+    .filter((g) => g.count >= 2)
+    .map((g) => ({ g, score: g.count * (MEAL_CATS.has(g.category) ? (g.category === meal ? 3 : 0.2) : 1) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ g }) => ({ note: g.note, category: g.category, amount: top(g.amounts), payment: top(g.payments) || '', count: g.count, multi: catsOfNote.get(g.note) > 1 }));
+}
+
 // ---------- 統計 ----------
 /** 期間內的明細：period = { mode: 'month', month } 或 { mode: 'year', year } */
 export function txOfPeriod(period) {

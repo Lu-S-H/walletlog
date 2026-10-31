@@ -1,5 +1,5 @@
 // 離線快取。改版時把 VERSION 改掉（並同步修改 js/config.js），手機就會出現「有新版本」提示。
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 const CACHE = `walletlog-${VERSION}`;
 
 const ASSETS = [
@@ -33,6 +33,7 @@ const ASSETS = [
   'js/views/extras.js',
   'js/views/fixed.js',
   'js/views/form.js',
+  'js/views/home.js',
   'js/views/list.js',
   'js/views/more.js',
   'js/views/onboarding.js',
