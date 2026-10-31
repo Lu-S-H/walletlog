@@ -39,12 +39,12 @@ function settingsPage(el) {
 
       <h2 class="sec-h">隱私</h2>
       <div class="form">
-        <div class="field"><label for="hide-summary">預設隱藏首頁金額</label>
+        <div class="field"><label for="hide-summary">預設隱藏收支摘要金額</label>
           <span class="switch"><input type="checkbox" id="hide-summary" ${s.hideSummary ? 'checked' : ''}><span></span></span></div>
         <div class="field"><label for="hide-salary">預設隱藏薪資金額</label>
           <span class="switch"><input type="checkbox" id="hide-salary" ${s.hideSalary ? 'checked' : ''}><span></span></span></div>
       </div>
-      <p class="field-note">開啟時金額顯示為 ****，點一下才顯示，避免被旁人看到。首頁的金額在 App 切到背景後會自動重新隱藏。</p>
+      <p class="field-note">開啟時金額顯示為 ****，點一下才顯示，避免被旁人看到。收支摘要包含首頁的本月卡片，以及統計頁的摘要、年度收支讀數與表格；兩處共用同一個開關，App 切到背景後會自動重新隱藏。</p>
 
       <h2 class="sec-h">記帳項目</h2>
       <div class="list">

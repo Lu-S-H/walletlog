@@ -2,6 +2,7 @@
 import { backupReminder, exportBackup, pickBackupFile, snoozeBackupReminder } from '../backup.js';
 import { icon } from '../icons.js';
 import { dailyNet, elapsedDays, groupByDay, totals, txOfMonth } from '../ledger.js';
+import { bindRevealToggle, canHide, isHidden, money } from '../privacy.js';
 import { state } from '../store.js';
 import { addMonths, dayTitle, fmt, formatMonth, html, isValidMonthStr, setHTML, thisMonth, todayStr } from '../util.js';
 import { openAddSheet } from './add.js';
@@ -9,12 +10,6 @@ import { openSearch } from './search.js';
 import { bindTxRows, txRow } from './txrow.js';
 
 let curMonth = thisMonth();
-let revealed = false; // 首頁金額是否已點開顯示（App 切到背景就重新隱藏）
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) revealed = false;
-});
-
-const MASK = '****';
 
 export function currentMonth() {
   return curMonth;
@@ -30,8 +25,7 @@ export function renderList(el) {
   const today = todayStr();
   const groups = groupByDay(list);
   const remind = backupReminder();
-  const hide = state.settings.hideSummary && !revealed;
-  const money = (n) => (hide ? MASK : fmt(n));
+  const hide = isHidden();
 
   setHTML(
     el,
@@ -52,11 +46,11 @@ export function renderList(el) {
         <button type="button" class="icon-btn" data-search aria-label="搜尋">${icon('search')}</button>
       </header>
 
-      <section class="hero-card ${state.settings.hideSummary ? 'can-hide' : ''}" ${state.settings.hideSummary ? html`role="button" tabindex="0" aria-pressed="${String(!hide)}" aria-label="${hide ? '顯示本月金額' : '隱藏本月金額'}"` : ''}>
-        <div class="hero-label">本月支出${state.settings.hideSummary ? html`<span class="peek">${icon('eye')}${hide ? '點一下顯示' : '點一下隱藏'}</span>` : ''}</div>
+      <section class="hero-card ${canHide() ? 'can-hide' : ''}" ${canHide() ? html`role="button" tabindex="0" aria-pressed="${String(!hide)}" aria-label="${hide ? '顯示本月金額' : '隱藏本月金額'}"` : ''}>
+        <div class="hero-label">本月支出${canHide() ? html`<span class="peek">${icon('eye')}${hide ? '點一下顯示' : '點一下隱藏'}</span>` : ''}</div>
         <div class="hero-num ${hide ? 'masked' : ''}">${money(tot.net)}</div>
         <div class="hero-stats">
-          <div><span>收入</span><b class="num inc">${hide ? MASK : `+${fmt(tot.income)}`}</b></div>
+          <div><span>收入</span><b class="num inc">${money(tot.income, '+')}</b></div>
           <div><span>結餘</span><b class="num">${money(tot.income - tot.net)}</b></div>
           <div><span>日均支出</span><b class="num">${days ? money(Math.round(tot.net / days)) : '—'}</b></div>
         </div>
@@ -122,20 +116,7 @@ export function renderList(el) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
-  const hero = el.querySelector('.hero-card.can-hide');
-  if (hero) {
-    const toggle = () => {
-      revealed = !revealed;
-      renderList(el);
-    };
-    hero.addEventListener('click', toggle);
-    hero.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggle();
-      }
-    });
-  }
+  bindRevealToggle(el.querySelector('.hero-card'), () => renderList(el));
   const groupsEl = el.querySelector('.tx-groups');
   if (groupsEl) bindTxRows(groupsEl);
 }

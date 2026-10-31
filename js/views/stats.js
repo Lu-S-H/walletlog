@@ -6,6 +6,7 @@ import {
   categoryTotals, dailyNet, dataYears, expenseEffect, groupByDay, groupTotals, monthTotals, noteTotals,
   sumSeries, tagTotals, totals, txOfPeriod, yearSeries,
 } from '../ledger.js';
+import { bindRevealToggle, canHide, isHidden, MASK, money } from '../privacy.js';
 import { state } from '../store.js';
 import { bindSegmented } from '../ui.js';
 import { addMonths, dayTitle, fmt, formatMonth, formatMonthDay, html, isValidMonthStr, setHTML, thisMonth, todayStr, weekdayName } from '../util.js';
@@ -114,6 +115,7 @@ function periodTotals() {
 /** 增減：箭頭＋文字，不只靠顏色；支出增加為「不好」 */
 function delta(cur, prev, upIsGood) {
   if (prev == null || cur == null) return '';
+  if (isHidden()) return html`<span class="delta">${MASK}</span>`;
   const d = cur - prev;
   if (d === 0) return html`<span class="delta">相同</span>`;
   const good = d > 0 === upIsGood;
@@ -124,12 +126,23 @@ function kpiTiles() {
   const { cur, prev, prevName } = periodTotals();
   if (!cur) return html`<div class="card empty-box"><p class="note">${periodName()}沒有資料</p></div>`;
   const bal = cur.income - cur.net;
-  return html`<div class="kpi-row">
-    <div class="kpi"><span class="kpi-label">支出</span><b class="kpi-val">${fmt(cur.net)}</b>${delta(cur.net, prev?.net, false)}</div>
-    <div class="kpi"><span class="kpi-label">收入</span><b class="kpi-val">${fmt(cur.income)}</b>${delta(cur.income, prev?.income, true)}</div>
-    <div class="kpi"><span class="kpi-label">結餘</span><b class="kpi-val">${fmt(bal)}</b>${prev ? delta(bal, prev.income - prev.net, true) : ''}</div>
+  return html`<div class="kpi-row" ${revealAttrs()}>
+    <div class="kpi"><span class="kpi-label">支出</span><b class="kpi-val">${money(cur.net)}</b>${delta(cur.net, prev?.net, false)}</div>
+    <div class="kpi"><span class="kpi-label">收入</span><b class="kpi-val">${money(cur.income)}</b>${delta(cur.income, prev?.income, true)}</div>
+    <div class="kpi"><span class="kpi-label">結餘</span><b class="kpi-val">${money(bal)}</b>${prev ? delta(bal, prev.income - prev.net, true) : ''}</div>
   </div>
-  ${prev ? html`<p class="kpi-cap">▲▼ 與${prevName}比較</p>` : ''}`;
+  ${kpiCaption(prev ? `▲▼ 與${prevName}比較` : '')}`;
+}
+
+/** 摘要卡片可點一下切換顯示金額 */
+function revealAttrs() {
+  if (!canHide()) return '';
+  return html`role="button" tabindex="0" aria-pressed="${String(!isHidden())}" aria-label="${isHidden() ? '顯示金額' : '隱藏金額'}"`;
+}
+
+function kpiCaption(text) {
+  const peek = canHide() ? html`<span class="peek-cap">${icon('eye')}${isHidden() ? '點數字顯示金額' : '點數字隱藏金額'}</span>` : '';
+  return text || peek ? html`<p class="kpi-cap"><span>${text}</span>${peek}</p>` : '';
 }
 
 // ---------- 總覽 ----------
@@ -150,7 +163,7 @@ function overviewPage(el) {
 
       ${groups.length
         ? html`<section class="card chart-card">
-            <div class="chart-head"><h2>支出分類</h2><span class="note num">${fmt(totalNet)}</span></div>
+            <div class="chart-head"><h2>支出分類</h2><span class="note num">${money(totalNet)}</span></div>
             ${rankedBars(groups.map((g) => ({
               icon: groupIcon(state.settings, g.name), name: g.name, value: g.net,
               share: totalNet > 0 ? (Math.max(0, g.net) / totalNet) * 100 : null,
@@ -174,6 +187,7 @@ function overviewPage(el) {
         : ''}`,
   );
   bindPeriod(el, () => overviewPage(el));
+  bindRevealToggle(el.querySelector('.kpi-row'), () => overviewPage(el));
   if (period.mode === 'month' && list.length) renderCalendar(el.querySelector('.cal-card'), list);
   renderTrend(el.querySelector('.trend-card'));
 }
@@ -214,7 +228,7 @@ function renderTrend(card) {
   const def = period.mode === 'month' ? Number(period.month.slice(5)) - 1 : -1;
   const sel = trendPick ?? def;
   const sum = sumSeries(series);
-  const line = (cls, label, v) => html`<span class="rd"><i class="key ${cls}"></i>${label} <b class="num">${v == null ? '—' : fmt(v)}</b></span>`;
+  const line = (cls, label, v) => html`<span class="rd"><i class="key ${cls}"></i>${label} <b class="num">${v == null ? '—' : money(v)}</b></span>`;
   const m = series[sel];
   setHTML(
     card,
@@ -223,15 +237,15 @@ function renderTrend(card) {
       <div class="chart-readout">${m
         ? html`<span class="rd-title">${Number(m.month.slice(5))}月${m.source === 'summary' ? '（彙總）' : ''}</span>
             ${line('s-exp', '支出', m.net)}${line('s-inc', '收入', m.income)}
-            ${m.source ? html`<span class="rd">結餘 <b class="num">${fmt(m.income - m.net)}</b></span>` : ''}`
+            ${m.source ? html`<span class="rd">結餘 <b class="num">${money(m.income - m.net)}</b></span>` : ''}`
         : html`<span class="rd-title">全年</span>${line('s-exp', '支出', sum.net)}${line('s-inc', '收入', sum.income)}
-            <span class="rd">結餘 <b class="num">${fmt(sum.income - sum.net)}</b></span>`}</div>
+            <span class="rd">結餘 <b class="num">${money(sum.income - sum.net)}</b></span>`}</div>
       <div class="chart-box"></div>
       <details class="chart-table"><summary>以表格檢視</summary>
         <table><thead><tr><th>月份</th><th>支出</th><th>收入</th><th>結餘</th></tr></thead>
           <tbody>${series.filter((x) => x.source).map((x) => html`<tr><td>${Number(x.month.slice(5))}月${x.source === 'summary' ? '＊' : ''}</td>
-            <td>${fmt(x.net)}</td><td>${fmt(x.income)}</td><td>${fmt(x.income - x.net)}</td></tr>`)}
-            <tr class="total"><td>合計</td><td>${fmt(sum.net)}</td><td>${fmt(sum.income)}</td><td>${fmt(sum.income - sum.net)}</td></tr></tbody></table>
+            <td>${money(x.net)}</td><td>${money(x.income)}</td><td>${money(x.income - x.net)}</td></tr>`)}
+            <tr class="total"><td>合計</td><td>${money(sum.net)}</td><td>${money(sum.income)}</td><td>${money(sum.income - sum.net)}</td></tr></tbody></table>
         ${sum.summaryMonths ? html`<p class="note">＊ 電腦版匯入的月度彙總</p>` : ''}
       </details>`,
   );
@@ -239,6 +253,7 @@ function renderTrend(card) {
     series: [{ cls: 's-exp' }, { cls: 's-inc' }],
     rows: series.map((x) => ({ label: String(Number(x.month.slice(5))), values: [x.net, x.income] })),
     selected: sel,
+    hideTicks: isHidden(),
     onSelect: (i) => {
       trendPick = i;
       renderTrend(card);
@@ -262,13 +277,14 @@ function renderMonthly(card, title, filterFn) {
       card,
       html`<div class="chart-head"><h2>${year} 年${title}每月支出</h2></div>
         <div class="chart-readout"><span class="rd-title">${sel >= 0 ? `${sel + 1}月` : '全年'}</span>
-          <span class="rd"><i class="key s-exp"></i>支出 <b class="num">${v == null ? '—' : fmt(v)}</b></span></div>
+          <span class="rd"><i class="key s-exp"></i>支出 <b class="num">${v == null ? '—' : money(v)}</b></span></div>
         <div class="chart-box"></div>`,
     );
     drawColumns(card.querySelector('.chart-box'), {
       series: [{ cls: 's-exp' }],
       rows: months.map((mo, i) => ({ label: String(i + 1), values: [vals[i]] })),
       selected: sel,
+      hideTicks: isHidden(),
       onSelect: (i) => {
         sel = i;
         draw();
@@ -291,11 +307,12 @@ function groupPage(el, groupName) {
     el,
     html`${subHead('統計', '#stats', `${groupIcon(s, groupName)} ${groupName}`)}
       ${periodBar()}
-      <div class="kpi-row">
-        <div class="kpi"><span class="kpi-label">支出</span><b class="kpi-val">${fmt(net)}</b></div>
+      <div class="kpi-row" ${revealAttrs()}>
+        <div class="kpi"><span class="kpi-label">支出</span><b class="kpi-val">${money(net)}</b></div>
         <div class="kpi"><span class="kpi-label">占總支出</span><b class="kpi-val">${totalNet > 0 ? Math.round((Math.max(0, net) / totalNet) * 100) : 0}%</b></div>
         <div class="kpi"><span class="kpi-label">筆數</span><b class="kpi-val">${fmt(count)}</b></div>
       </div>
+      ${kpiCaption('')}
       ${cats.length
         ? html`<section class="card chart-card"><div class="chart-head"><h2>分類</h2><span class="note">占${groupName}</span></div>
             ${rankedBars(cats.map((c) => ({
@@ -307,6 +324,7 @@ function groupPage(el, groupName) {
       <section class="card chart-card monthly-card"></section>`,
   );
   bindPeriod(el, () => groupPage(el, groupName));
+  bindRevealToggle(el.querySelector('.kpi-row'), () => groupPage(el, groupName));
   renderMonthly(el.querySelector('.monthly-card'), groupName, (t) => t.type !== 'income' && groupOf(s, t.category) === groupName);
 }
 
@@ -346,14 +364,15 @@ function detailPage(el, { back, title, match, rerender, monthlyTitle, showIncome
     el,
     html`${subHead(back[0], back[1], title)}
       ${periodBar()}
-      <div class="kpi-row">
-        <div class="kpi"><span class="kpi-label">支出</span><b class="kpi-val">${fmt(tot.net)}</b>
-          ${tot.refund ? html`<span class="delta">已扣退款 ${fmt(tot.refund)}</span>` : ''}</div>
+      <div class="kpi-row" ${revealAttrs()}>
+        <div class="kpi"><span class="kpi-label">支出</span><b class="kpi-val">${money(tot.net)}</b>
+          ${tot.refund ? html`<span class="delta">已扣退款 ${money(tot.refund)}</span>` : ''}</div>
         <div class="kpi"><span class="kpi-label">筆數</span><b class="kpi-val">${fmt(spend.length)}</b></div>
-        <div class="kpi"><span class="kpi-label">平均每筆</span><b class="kpi-val">${spend.length ? fmt(Math.round(tot.net / spend.length)) : '—'}</b></div>
+        <div class="kpi"><span class="kpi-label">平均每筆</span><b class="kpi-val">${spend.length ? money(Math.round(tot.net / spend.length)) : '—'}</b></div>
         <div class="kpi"><span class="kpi-label">占總支出</span><b class="kpi-val">${periodNet > 0 ? Math.round((Math.max(0, tot.net) / periodNet) * 100) : 0}%</b></div>
-        ${showIncome && tot.income ? html`<div class="kpi"><span class="kpi-label">收入</span><b class="kpi-val">${fmt(tot.income)}</b></div>` : ''}
+        ${showIncome && tot.income ? html`<div class="kpi"><span class="kpi-label">收入</span><b class="kpi-val">${money(tot.income)}</b></div>` : ''}
       </div>
+      ${kpiCaption('')}
       <section class="card chart-card monthly-card"></section>
       ${tops.length
         ? html`<section class="card chart-card"><div class="chart-head"><h2>常見項目</h2><span class="note">依備註</span></div>
@@ -366,6 +385,7 @@ function detailPage(el, { back, title, match, rerender, monthlyTitle, showIncome
         : html`<div class="empty-box"><p class="note">${periodName()}沒有紀錄</p></div>`}`,
   );
   bindPeriod(el, rerender);
+  bindRevealToggle(el.querySelector('.kpi-row'), rerender);
   renderMonthly(el.querySelector('.monthly-card'), monthlyTitle, (t) => t.type !== 'income' && match(t));
   const dl = el.querySelector('.detail-list');
   if (dl) bindTxRows(dl);

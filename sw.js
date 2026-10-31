@@ -19,6 +19,7 @@ const ASSETS = [
   'js/charts.js',
   'js/ledger.js',
   'js/legacy.js',
+  'js/privacy.js',
   'js/backup.js',
   'js/icons.js',
   'js/ui.js',

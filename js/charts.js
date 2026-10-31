@@ -28,9 +28,10 @@ function barPath(x, y, w, h) {
 
 /**
  * 分組直條圖（畫進 el，寬度依容器）。
- * opts = { series: [{ key, cls }], rows: [{ label, values: [數字或 null] }], selected, onSelect(i) }
+ * opts = { series: [{ key, cls }], rows: [{ label, values: [數字或 null] }], selected, onSelect(i), hideTicks }
+ * hideTicks：金額隱藏時不顯示縱軸刻度（刻度會透露大約金額）
  */
-export function drawColumns(el, { series, rows, selected = -1, onSelect }) {
+export function drawColumns(el, { series, rows, selected = -1, onSelect, hideTicks = false }) {
   const W = Math.max(280, Math.round(el.clientWidth || 340));
   const H = 168;
   const pad = { l: 40, r: 4, t: 8, b: 22 };
@@ -49,7 +50,7 @@ export function drawColumns(el, { series, rows, selected = -1, onSelect }) {
   for (let v = 0; v <= top + 1e-9; v += step) {
     const yy = Math.round(y(v)) + 0.5;
     out += `<line class="${v === 0 ? 'axis' : 'grid'}" x1="${pad.l}" x2="${W - pad.r}" y1="${yy}" y2="${yy}"/>`;
-    out += `<text class="tick" x="${pad.l - 6}" y="${yy + 4}" text-anchor="end">${fmtTick(v)}</text>`;
+    if (!hideTicks) out += `<text class="tick" x="${pad.l - 6}" y="${yy + 4}" text-anchor="end">${fmtTick(v)}</text>`;
   }
   rows.forEach((row, i) => {
     const x0 = pad.l + band * i;
