@@ -470,3 +470,131 @@ main {
 .steps-list li + li { margin-top: var(--s2); }
 .steps-list .icon { width: 20px; height: 20px; vertical-align: -4px; margin-left: 4px; color: var(--acc-text); }
 .onb .actions .note { margin: 0; }
+
+/* ============ 首頁金額隱藏 ============ */
+.hero-card.can-hide { cursor: pointer; }
+.hero-label { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); }
+.peek { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--on-ink-muted); }
+.peek .icon { width: 16px; height: 16px; }
+.hero-num.masked { letter-spacing: 4px; }
+
+/* ============ 統計：圖表顏色（已用 dataviz 驗證器檢查，淺色／深色各自一組） ============ */
+:root {
+  --viz-exp: #C08A1E;  /* 支出：金 */
+  --viz-inc: #2A78D6;  /* 收入：藍 */
+  --viz-grid: #ECECE6;
+  --viz-axis: #C9C9C0;
+  --viz-band: rgb(17 17 17 / 5%);
+  --heat-1: #F6E7C1; --heat-2: #EBCB82; --heat-3: #D9AA4A; --heat-4: #B8862A; --heat-5: #8A6216;
+  --heat-t-1: #111111; --heat-t-2: #111111; --heat-t-3: #111111; --heat-t-4: #FFFFFF; --heat-t-5: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --viz-exp: #B8862A; --viz-inc: #3987E5; --viz-grid: #2C2C2E; --viz-axis: #3A3A3D; --viz-band: rgb(255 255 255 / 6%);
+    --heat-1: #3D3220; --heat-2: #6B5424; --heat-3: #9C7A2C; --heat-4: #C99E3E; --heat-5: #EBC56A;
+    --heat-t-1: #FFFFFF; --heat-t-2: #FFFFFF; --heat-t-3: #FFFFFF; --heat-t-4: #111111; --heat-t-5: #111111;
+  }
+}
+:root[data-theme="dark"] {
+  --viz-exp: #B8862A; --viz-inc: #3987E5; --viz-grid: #2C2C2E; --viz-axis: #3A3A3D; --viz-band: rgb(255 255 255 / 6%);
+  --heat-1: #3D3220; --heat-2: #6B5424; --heat-3: #9C7A2C; --heat-4: #C99E3E; --heat-5: #EBC56A;
+  --heat-t-1: #FFFFFF; --heat-t-2: #FFFFFF; --heat-t-3: #FFFFFF; --heat-t-4: #111111; --heat-t-5: #111111;
+}
+
+/* ============ 統計：版面 ============ */
+.period-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin: 0 0 var(--s3); }
+.seg.mini { flex: none; width: 104px; }
+.seg.mini button { min-height: 34px; font-size: 14px; }
+.period-nav { display: flex; align-items: center; margin-right: -10px; }
+.period-pick { position: relative; display: flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: 17px; font-weight: 700; white-space: nowrap; }
+.period-pick input, .period-pick select { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: var(--s2); margin-bottom: var(--s3); }
+.kpi { background: var(--card); border-radius: var(--r-row); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kpi-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.kpi-val { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.delta { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.delta.good { color: var(--inc); }
+.delta.bad { color: var(--error); }
+.kpi-cap { font-size: 12px; color: var(--muted); margin: calc(-1 * var(--s1)) var(--s2) var(--s3); }
+
+.chart-card { padding: var(--s4); }
+.chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); margin-bottom: var(--s2); }
+.chart-head h2 { margin: 0; font-size: 16px; font-weight: 800; }
+.legend { display: inline-flex; gap: var(--s3); font-size: 12px; color: var(--muted); }
+.legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.sw.s-exp, .key.s-exp { background: var(--viz-exp); }
+.sw.s-inc, .key.s-inc { background: var(--viz-inc); }
+
+.chart-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--s3); font-size: 13px; color: var(--muted); min-height: 20px; margin-bottom: var(--s1); }
+.chart-readout .rd-title { color: var(--text); font-weight: 700; }
+.chart-readout b { color: var(--text); font-weight: 700; }
+.chart-readout .key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; margin-right: 4px; vertical-align: 4px; }
+
+.chart-box { width: 100%; }
+.chart { display: block; overflow: visible; touch-action: pan-y; }
+.chart .grid { stroke: var(--viz-grid); stroke-width: 1; }
+.chart .axis { stroke: var(--viz-axis); stroke-width: 1; }
+.chart .tick, .chart .xlab { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart .xlab.on { fill: var(--text); font-weight: 700; }
+.chart .band-hi { fill: var(--viz-band); }
+.chart .bar.s-exp { fill: var(--viz-exp); }
+.chart .bar.s-inc { fill: var(--viz-inc); }
+.chart .hit { fill: transparent; cursor: pointer; outline: none; }
+.chart .hit:focus-visible { stroke: var(--acc-text); stroke-width: 2; }
+
+.chart-table { margin-top: var(--s2); font-size: var(--fs-note); }
+.chart-table summary { color: var(--acc-text); cursor: pointer; min-height: 32px; display: flex; align-items: center; font-weight: 600; }
+.chart-table table { width: 100%; border-collapse: collapse; margin-top: var(--s1); font-variant-numeric: tabular-nums; }
+.chart-table th { text-align: right; font-weight: 600; color: var(--muted); padding: var(--s1) 0; }
+.chart-table td { text-align: right; padding: 6px 0; border-top: 0.5px solid var(--sep); }
+.chart-table th:first-child, .chart-table td:first-child { text-align: left; }
+.chart-table tr.total td { font-weight: 700; }
+
+/* 排名橫條 */
+.rank-list { display: flex; flex-direction: column; }
+.rank-row { display: flex; align-items: center; gap: var(--s3); padding: 9px 0; color: inherit; }
+.rank-row + .rank-row { border-top: 0.5px solid var(--sep); }
+.rank-row.tap { cursor: pointer; }
+.rank-row.tap:active { opacity: .6; }
+.rank-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rank-head { display: flex; justify-content: space-between; gap: var(--s2); }
+.rank-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-val { font-weight: 700; flex: none; }
+.rank-sub { display: flex; align-items: center; gap: var(--s2); }
+.rank-track { flex: 1; height: 8px; }
+.rank-track i { display: block; height: 100%; background: var(--viz-exp); border-radius: 0 4px 4px 0; min-width: 2px; }
+.rank-share { font-size: 12px; color: var(--muted); width: 34px; text-align: right; flex: none; }
+.rank-share:empty { display: none; }
+.rank-note { font-size: 12px; color: var(--muted); }
+
+/* 月曆熱度 */
+.cal-week, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-week { font-size: 11px; color: var(--muted); text-align: center; margin-bottom: 4px; }
+.cal-cell {
+  position: relative; aspect-ratio: 1 / 1.05; border: 0; border-radius: 10px; padding: 4px 3px;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: stretch;
+  background: var(--bg); color: var(--text); text-align: left; min-width: 0;
+}
+.cal-cell.blank { background: none; }
+.cal-d { font-size: 11px; font-weight: 600; opacity: .8; }
+.cal-v { font-size: 10px; font-weight: 700; text-align: right; white-space: nowrap; overflow: hidden; }
+.cal-cell.h1 { background: var(--heat-1); color: var(--heat-t-1); }
+.cal-cell.h2 { background: var(--heat-2); color: var(--heat-t-2); }
+.cal-cell.h3 { background: var(--heat-3); color: var(--heat-t-3); }
+.cal-cell.h4 { background: var(--heat-4); color: var(--heat-t-4); }
+.cal-cell.h5 { background: var(--heat-5); color: var(--heat-t-5); }
+.cal-cell.future { opacity: .45; }
+.cal-cell.today { box-shadow: inset 0 0 0 2px var(--text); }
+.cal-cell.on { box-shadow: inset 0 0 0 2px var(--text), 0 0 0 2px var(--acc); }
+.heat-legend { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; color: var(--muted); margin-top: var(--s2); }
+.heat-key { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.heat-key i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.heat-key i.h1 { background: var(--heat-1); }
+.heat-key i.h2 { background: var(--heat-2); }
+.heat-key i.h3 { background: var(--heat-3); }
+.heat-key i.h4 { background: var(--heat-4); }
+.heat-key i.h5 { background: var(--heat-5); }
+.cal-day { margin-top: var(--s3); }
+.cal-day .day-h { margin-top: 0; }
+.cal-day .tx-row { background: var(--bg); }

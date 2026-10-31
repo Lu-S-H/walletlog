@@ -1,4 +1,5 @@
 // 收支計算。退款從支出扣除、不算收入；固定支出／旅行／羽球是獨立帳，不在這裡計算。
+import { groupOf } from './categories.js';
 import { state } from './store.js';
 import { daysInMonth, monthOf, thisMonth, todayStr } from './util.js';
 
@@ -152,4 +153,104 @@ export function lastUseOfNote(note, type, now = new Date()) {
 
 export function monthsWithData() {
   return new Set(state.transactions.map((t) => monthOf(t.date)));
+}
+
+// ---------- 統計 ----------
+/** 期間內的明細：period = { mode: 'month', month } 或 { mode: 'year', year } */
+export function txOfPeriod(period) {
+  return period.mode === 'year' ? state.transactions.filter((t) => t.date.startsWith(period.year)) : txOfMonth(period.month);
+}
+
+/** 各分類的淨支出（支出−退款）：[{ name, net, count, items }]，依淨支出由大到小 */
+export function categoryTotals(list) {
+  const m = new Map();
+  for (const t of list) {
+    if (t.type === 'income') continue;
+    let e = m.get(t.category);
+    if (!e) m.set(t.category, (e = { name: t.category, net: 0, count: 0, items: [] }));
+    e.net += expenseEffect(t);
+    e.count++;
+    e.items.push(t);
+  }
+  return [...m.values()].sort((a, b) => b.net - a.net);
+}
+
+/** 依大類彙總：[{ name, net, count, cats: [分類彙總] }]，依淨支出由大到小 */
+export function groupTotals(cats) {
+  const s = state.settings;
+  const m = new Map();
+  for (const c of cats) {
+    const g = groupOf(s, c.name);
+    let e = m.get(g);
+    if (!e) m.set(g, (e = { name: g, net: 0, count: 0, cats: [] }));
+    e.net += c.net;
+    e.count += c.count;
+    e.cats.push(c);
+  }
+  return [...m.values()].sort((a, b) => b.net - a.net);
+}
+
+/** 依備註彙總（常見項目）：[{ note, net, count }] */
+export function noteTotals(items) {
+  const m = new Map();
+  for (const t of items) {
+    const note = (t.note || '').trim() || '（無備註）';
+    let e = m.get(note);
+    if (!e) m.set(note, (e = { note, net: 0, count: 0 }));
+    e.net += expenseEffect(t);
+    e.count++;
+  }
+  return [...m.values()].sort((a, b) => b.count - a.count || b.net - a.net);
+}
+
+/** 依標籤彙總淨支出與收入：[{ tag, net, income, count }] */
+export function tagTotals(list) {
+  const m = new Map();
+  for (const t of list) {
+    for (const tag of t.tags || []) {
+      let e = m.get(tag);
+      if (!e) m.set(tag, (e = { tag, net: 0, income: 0, count: 0 }));
+      if (t.type === 'income') e.income += t.amount;
+      else e.net += expenseEffect(t);
+      e.count++;
+    }
+  }
+  return [...m.values()].sort((a, b) => b.net - a.net || b.count - a.count);
+}
+
+/** 某月的支出（淨）與收入：有明細用明細，沒有明細時用電腦版匯入的月度彙總；都沒有回傳 null */
+export function monthTotals(month) {
+  const list = txOfMonth(month);
+  if (list.length) {
+    const t = totals(list);
+    return { net: t.net, income: t.income, source: 'tx' };
+  }
+  const sm = state.monthlySummaries.find((x) => x.month === month);
+  return sm ? { net: sm.expense, income: sm.income, source: 'summary' } : null;
+}
+
+/** 一年 12 個月的收支（沒有資料的月份為 null） */
+export function yearSeries(year) {
+  return Array.from({ length: 12 }, (_, i) => {
+    const month = `${year}-${String(i + 1).padStart(2, '0')}`;
+    return { month, ...(monthTotals(month) || { net: null, income: null, source: null }) };
+  });
+}
+
+export function sumSeries(series) {
+  const has = series.filter((m) => m.source);
+  return {
+    net: has.reduce((s, m) => s + m.net, 0),
+    income: has.reduce((s, m) => s + m.income, 0),
+    months: has.length,
+    summaryMonths: has.filter((m) => m.source === 'summary').length,
+  };
+}
+
+/** 有資料的年份（含月度彙總），由舊到新，並包含今年 */
+export function dataYears() {
+  const ys = new Set([todayStr().slice(0, 4)]);
+  for (const t of state.transactions) ys.add(t.date.slice(0, 4));
+  for (const m of state.monthlySummaries) ys.add(m.month.slice(0, 4));
+  return [...ys].sort();
 }

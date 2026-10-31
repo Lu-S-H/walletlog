@@ -7,7 +7,8 @@ import { openAddSheet } from './views/add.js';
 import { currentMonth, renderList } from './views/list.js';
 import { renderMore } from './views/more.js';
 import { renderOnboarding } from './views/onboarding.js';
-import { renderSalary, renderStats } from './views/placeholder.js';
+import { renderSalary } from './views/placeholder.js';
+import { renderStats } from './views/stats.js';
 
 const TABS = {
   list: { label: '明細', icon: 'list', render: renderList },
@@ -29,7 +30,13 @@ let waitingWorker = null;
 /** 網址 #more/settings → { tab: 'more', sub: 'settings' } */
 function route() {
   const [tab, ...rest] = location.hash.slice(1).split('/');
-  return TABS[tab] ? { tab, sub: rest.join('/') } : { tab: 'list', sub: '' };
+  let sub = rest.join('/');
+  try {
+    sub = decodeURIComponent(sub); // 分類名稱是中文，網址裡會被編碼
+  } catch {
+    sub = '';
+  }
+  return TABS[tab] ? { tab, sub } : { tab: 'list', sub: '' };
 }
 
 function applyTheme() {
@@ -120,6 +127,16 @@ bannerEl.addEventListener('click', (e) => {
     updateRequested = true;
     waitingWorker.postMessage({ type: 'SKIP_WAITING' });
   }
+});
+
+// 圖表依寬度繪製：轉向或視窗大小改變時重畫
+let resizeTimer = null;
+let lastWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === lastWidth) return; // 鍵盤彈出只改變高度，不需要重畫
+  lastWidth = window.innerWidth;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => route().tab === 'stats' && render(), 200);
 });
 
 // ---------- 新版本偵測 ----------

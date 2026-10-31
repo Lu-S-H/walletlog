@@ -37,10 +37,14 @@ function settingsPage(el) {
         ${[['auto', '跟隨系統'], ['light', '淺色'], ['dark', '深色']].map(([v, t]) => html`<button type="button" data-v="${v}" class="${s.theme === v ? 'on' : ''}" aria-pressed="${String(s.theme === v)}">${t}</button>`)}
       </div>
 
-      <h2 class="sec-h">薪資</h2>
-      <div class="form"><div class="field"><label for="hide-salary">預設隱藏薪資金額</label>
-        <span class="switch"><input type="checkbox" id="hide-salary" ${s.hideSalary ? 'checked' : ''}><span></span></span></div></div>
-      <p class="field-note">開啟時，薪資頁的金額顯示為 ****，點一下才顯示，避免被旁人看到。</p>
+      <h2 class="sec-h">隱私</h2>
+      <div class="form">
+        <div class="field"><label for="hide-summary">預設隱藏首頁金額</label>
+          <span class="switch"><input type="checkbox" id="hide-summary" ${s.hideSummary ? 'checked' : ''}><span></span></span></div>
+        <div class="field"><label for="hide-salary">預設隱藏薪資金額</label>
+          <span class="switch"><input type="checkbox" id="hide-salary" ${s.hideSalary ? 'checked' : ''}><span></span></span></div>
+      </div>
+      <p class="field-note">開啟時金額顯示為 ****，點一下才顯示，避免被旁人看到。首頁的金額在 App 切到背景後會自動重新隱藏。</p>
 
       <h2 class="sec-h">記帳項目</h2>
       <div class="list">
@@ -72,6 +76,7 @@ function settingsPage(el) {
   );
   bindSegmented(el, (_, v) => store.saveSettings({ theme: v }));
   el.querySelector('#hide-salary').addEventListener('change', (e) => store.saveSettings({ hideSalary: e.target.checked }));
+  el.querySelector('#hide-summary').addEventListener('change', (e) => store.saveSettings({ hideSummary: e.target.checked }));
   el.querySelectorAll('[data-act]').forEach((b) =>
     b.addEventListener('click', () => {
       const act = b.dataset.act;

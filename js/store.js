@@ -10,6 +10,7 @@ export function defaultSettings() {
     tags: [],
     theme: 'auto', // auto | light | dark
     hideSalary: true,
+    hideSummary: true, // 首頁本月支出／收入／結餘／日均預設顯示 ****
     lastPayment: null,
     lastBackupAt: null,
     backupSnoozeUntil: null,

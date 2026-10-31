@@ -9,6 +9,12 @@ import { openSearch } from './search.js';
 import { bindTxRows, txRow } from './txrow.js';
 
 let curMonth = thisMonth();
+let revealed = false; // 首頁金額是否已點開顯示（App 切到背景就重新隱藏）
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) revealed = false;
+});
+
+const MASK = '****';
 
 export function currentMonth() {
   return curMonth;
@@ -24,6 +30,8 @@ export function renderList(el) {
   const today = todayStr();
   const groups = groupByDay(list);
   const remind = backupReminder();
+  const hide = state.settings.hideSummary && !revealed;
+  const money = (n) => (hide ? MASK : fmt(n));
 
   setHTML(
     el,
@@ -44,23 +52,23 @@ export function renderList(el) {
         <button type="button" class="icon-btn" data-search aria-label="搜尋">${icon('search')}</button>
       </header>
 
-      <section class="hero-card">
-        <div class="hero-label">本月支出</div>
-        <div class="hero-num num">${fmt(tot.net)}</div>
+      <section class="hero-card ${state.settings.hideSummary ? 'can-hide' : ''}" ${state.settings.hideSummary ? html`role="button" tabindex="0" aria-pressed="${String(!hide)}" aria-label="${hide ? '顯示本月金額' : '隱藏本月金額'}"` : ''}>
+        <div class="hero-label">本月支出${state.settings.hideSummary ? html`<span class="peek">${icon('eye')}${hide ? '點一下顯示' : '點一下隱藏'}</span>` : ''}</div>
+        <div class="hero-num ${hide ? 'masked' : ''}">${money(tot.net)}</div>
         <div class="hero-stats">
-          <div><span>收入</span><b class="num inc">+${fmt(tot.income)}</b></div>
-          <div><span>結餘</span><b class="num">${fmt(tot.income - tot.net)}</b></div>
-          <div><span>日均支出</span><b class="num">${days ? fmt(Math.round(tot.net / days)) : '—'}</b></div>
+          <div><span>收入</span><b class="num inc">${hide ? MASK : `+${fmt(tot.income)}`}</b></div>
+          <div><span>結餘</span><b class="num">${money(tot.income - tot.net)}</b></div>
+          <div><span>日均支出</span><b class="num">${days ? money(Math.round(tot.net / days)) : '—'}</b></div>
         </div>
         <div class="spark">
           <div class="spark-head"><span>每日支出</span>
-            <span>${max > 0 ? `最高 ${Number(curMonth.slice(5))}/${maxDay} · ${fmt(max)}` : ''}${tot.refund ? `　已扣退款 ${fmt(tot.refund)}` : ''}</span></div>
+            <span>${max > 0 ? `最高 ${Number(curMonth.slice(5))}/${maxDay} · ${money(max)}` : ''}${tot.refund ? `　已扣退款 ${money(tot.refund)}` : ''}</span></div>
           <div class="spark-bars">
             ${daily.map((v, i) => {
               const date = `${curMonth}-${String(i + 1).padStart(2, '0')}`;
               const h = max > 0 ? Math.max(3, (Math.max(v, 0) / max) * 44) : 3;
               const cls = date > today ? 'future' : v === max && max > 0 ? 'hi' : '';
-              return html`<i class="${cls}" style="height:${h}px" data-day="${date}" title="${i + 1}日 ${fmt(v)}"></i>`;
+              return html`<i class="${cls}" style="height:${h}px" data-day="${date}" title="${hide ? `${i + 1}日` : `${i + 1}日 ${fmt(v)}`}"></i>`;
             })}
           </div>
         </div>
@@ -109,8 +117,25 @@ export function renderList(el) {
   el.querySelector('.spark-bars').addEventListener('click', (e) => {
     const day = e.target.closest('[data-day]')?.dataset.day;
     const target = day && document.getElementById(`d-${day}`);
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (target) {
+      e.stopPropagation(); // 點長條是跳到那一天，不是切換顯示金額
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   });
+  const hero = el.querySelector('.hero-card.can-hide');
+  if (hero) {
+    const toggle = () => {
+      revealed = !revealed;
+      renderList(el);
+    };
+    hero.addEventListener('click', toggle);
+    hero.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  }
   const groupsEl = el.querySelector('.tx-groups');
   if (groupsEl) bindTxRows(groupsEl);
 }

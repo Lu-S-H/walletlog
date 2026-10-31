@@ -1,4 +1,4 @@
-// 尚未完成的分頁（統計：第 2 階段；薪資：第 3 階段）
+// 尚未完成的分頁（薪資：第 3 階段）
 import { html, setHTML } from '../util.js';
 
 function comingSoon(el, title, emoji, lines) {
@@ -11,10 +11,6 @@ function comingSoon(el, title, emoji, lines) {
         <ul class="soon-list">${lines.map((l) => html`<li>${l}</li>`)}</ul>
       </div>`,
   );
-}
-
-export function renderStats(el) {
-  comingSoon(el, '統計', '📊', ['分類占比：大類 → 小類 → 明細下鑽', '年度收支趨勢（含 2024–2025 月度彙總）', '日曆檢視：每日支出深淺', '標籤統計']);
 }
 
 export function renderSalary(el) {
