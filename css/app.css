@@ -684,3 +684,12 @@ main {
 .sl-add button { min-height: 32px; font-size: 13px; font-weight: 500; }
 .sl-sum { color: var(--text); }
 .field input.wide { flex: 1 1 100%; text-align: left; }
+
+/* ============ iOS：透明覆蓋的日期／月份選擇框 ============ */
+/* iOS 的日期、月份輸入框有內建最小寬度，透明覆蓋在標題上時會超出外框、蓋住旁邊的箭頭或按鈕。
+   取消最小寬度、把超出的部分裁掉（裁掉的部分也點不到），並讓箭頭疊在最上層。 */
+.month-pick, .period-pick, .meta-chip.date-chip { overflow: hidden; }
+.month-pick input, .period-pick input, .period-pick select, .meta-chip .date-input {
+  -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; margin: 0; padding: 0; border: 0; box-sizing: border-box;
+}
+.month-head .icon-btn, .period-nav .icon-btn { position: relative; z-index: 1; }
