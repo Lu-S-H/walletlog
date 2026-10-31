@@ -30,7 +30,7 @@ export function renderOnboarding(el) {
       <div class="actions">
         <button type="button" class="btn-primary" data-start>開始使用</button>
         <button type="button" class="btn-secondary" data-restore>匯入備份檔</button>
-        <p class="note center">可以匯入「${APP_NAME}」的備份檔，或電腦版「AI記帳」的備份檔（AI記帳備份-日期.json）。</p>
+        <p class="note center">可以匯入「${APP_NAME}」的備份檔，或電腦版「AI記帳」的備份檔（AI記帳備份-日期.json）。有 Excel 薪資匯入檔的話，匯入電腦版資料之後再匯入它。</p>
       </div>
     </div>`,
   );

@@ -63,7 +63,7 @@
 
 **改 App 名稱**：`js/config.js` 的 `APP_NAME`、`index.html` 的 `<title>` 與 `apple-mobile-web-app-title`、`manifest.webmanifest` 的 `name` 與 `short_name`。已經加到主畫面的圖示名稱，需要刪掉後重新「加入主畫面」才會更新（先備份！）。
 
-**匯入 Excel 薪資明細**：`python tools/salary_from_excel.py 記帳簿.xlsx 薪資歷史-匯入用.json`，把產生的檔案放到手機讀得到的地方（OneDrive／iCloud），在 App 的「薪資」頁最下方選「匯入 Excel 薪資明細」。轉換時會逐欄核對加總是否等於「總計」列。
+**匯入 Excel 薪資明細**：`python tools/salary_from_excel.py 記帳簿.xlsx 薪資歷史-匯入用.json`，把產生的檔案放到手機讀得到的地方（OneDrive／iCloud），在 App 的「更多 → 設定 → 匯入備份檔」選它（一般的匯入會自動辨認檔案類型；薪資匯入檔只會加入薪資單，不會取代其他資料）。這是搬家用的一次性功能，轉換時會逐欄核對加總是否等於「總計」列。
 
 **本機預覽**：在這個資料夾執行 `python -m http.server 8765`，用瀏覽器打開 <http://127.0.0.1:8765/>。
 

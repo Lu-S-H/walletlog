@@ -2,11 +2,9 @@
 import { drawColumns } from '../charts.js';
 import { icon } from '../icons.js';
 import { bindRevealToggle, canHide, isHidden, money as moneyOf } from '../privacy.js';
-import {
-  applySalaryImport, ITEM_ALIAS, parseSalaryImport, planSalaryImport, slipTitle, slipTotals, sortedSlips,
-} from '../salary.js';
+import { ITEM_ALIAS, slipTitle, slipTotals, sortedSlips } from '../salary.js';
 import { state } from '../store.js';
-import { alertMsg, bindSegmented, dialog, toast } from '../ui.js';
+import { bindSegmented } from '../ui.js';
 import { addMonths, fmt, formatMonth, formatShortDate, html, isValidMonthStr, setHTML, thisMonth } from '../util.js';
 import { openSlipEditor } from './slip.js';
 
@@ -15,6 +13,14 @@ const signed = (n) => (isHidden('salary') ? '****' : `${n < 0 ? '−' : ''}${fmt
 
 const period = { mode: 'month', month: null, year: null };
 let yearPick = null;
+
+/** 讓薪資頁打開指定的薪資月份（匯入後使用） */
+export function focusSalaryMonth(month) {
+  period.mode = 'month';
+  period.month = month;
+  period.year = month.slice(0, 4);
+  yearPick = null;
+}
 
 function defaultMonth() {
   const last = sortedSlips().at(-1);
@@ -32,11 +38,7 @@ export function renderSalary(el) {
     html`<header class="page-head"><h1 class="page-title">薪資</h1>
         <button type="button" class="icon-btn add-slip" aria-label="新增薪資單">${icon('plus')}</button></header>
       ${periodBar()}
-      ${period.mode === 'month' ? monthView() : yearView()}
-      <div class="list" style="margin-top:var(--s5)">
-        <button type="button" class="row tap" data-import><span class="grow"><span class="title">匯入 Excel 薪資明細</span>
-          <span class="detail">選擇電腦產生的「薪資歷史-匯入用.json」，會自動和已記的薪水收入對帳</span></span></button>
-      </div>`,
+      ${period.mode === 'month' ? monthView() : yearView()}`,
   );
   // 期間切換
   bindSegmented(el.querySelector('.period-bar'), (_, v) => {
@@ -85,7 +87,6 @@ export function renderSalary(el) {
     }),
   );
   bindRevealToggle(el.querySelector('[data-reveal]'), rerender, 'salary');
-  el.querySelector('[data-import]').addEventListener('click', () => pickImport());
   const chart = el.querySelector('.sal-chart');
   if (chart) drawYearChart(chart, rerender);
 }
@@ -196,7 +197,7 @@ function yearView() {
   const slips = yearSlips();
   if (!slips.length) {
     return html`<div class="card empty-box"><p><b>${period.year} 年還沒有薪資單</b></p>
-      <p class="note">可以用下方的「匯入 Excel 薪資明細」匯入過去的紀錄。</p></div>`;
+      <p class="note">過去的薪資可以從「更多 → 設定 → 匯入備份檔」匯入 Excel 薪資匯入檔。</p></div>`;
   }
   const monthly = slips.filter((s) => s.kind === 'monthly');
   const totals = slips.map(slipTotals);
@@ -267,57 +268,4 @@ function drawYearChart(box, rerender) {
     show();
   };
   draw();
-}
-
-// ---------- Excel 匯入 ----------
-function pickImport() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'application/json,.json';
-  input.addEventListener('change', async () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    let obj;
-    try {
-      obj = JSON.parse(await file.text());
-    } catch {
-      await alertMsg('無法讀取檔案', '檔案內容不是有效的匯入檔。');
-      return;
-    }
-    const res = parseSalaryImport(obj);
-    if (res.error) {
-      await alertMsg('無法匯入', res.error);
-      return;
-    }
-    const plan = planSalaryImport(res.months);
-    const nm = plan.slips.filter((s) => s.kind === 'monthly').length;
-    const nb = plan.slips.length - nm;
-    if (!plan.slips.length) {
-      await alertMsg('沒有新的薪資單', plan.skipped ? `匯入檔裡的 ${plan.skipped} 張薪資單都已經存在。` : '匯入檔裡沒有薪資資料。');
-      return;
-    }
-    const range = `${plan.slips[0].period} – ${plan.slips.at(-1).period}`;
-    const message = [
-      `${range}：${nm} 張月薪單、${nb} 張獎金單。`,
-      `其中 ${plan.links.size} 張和已記的收入明細對上，會直接連結（不重複記帳）。`,
-      '沒對上的不會產生收入明細（2024–2025 只有月度彙總）。',
-    ];
-    if (plan.unmatched.length) message.push(`這些在有明細的月份卻沒對上，匯入後請確認：${plan.unmatched.join('、')}`);
-    if (plan.skipped) message.push(`${plan.skipped} 張已經存在，會略過。`);
-    const ok = await dialog({
-      title: '匯入薪資歷史？',
-      message,
-      buttons: [
-        { label: '取消', value: false, role: 'cancel' },
-        { label: '匯入', value: true },
-      ],
-    });
-    if (!ok) return;
-    // 匯入後跳到最新一張薪資單的月份
-    period.mode = 'month';
-    period.month = plan.slips.reduce((m, x) => (x.period > m ? x.period : m), plan.slips[0].period);
-    applySalaryImport(plan);
-    toast(`已匯入 ${plan.slips.length} 張薪資單`);
-  });
-  input.click();
 }

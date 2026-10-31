@@ -3,6 +3,8 @@ import { groupOf, TYPE_LABEL } from './categories.js';
 import { APP_NAME, BACKUP_REMIND_DAYS } from './config.js';
 import { COLLECTIONS } from './db.js';
 import { convertLegacy, isLegacyBackup } from './legacy.js';
+import { IMPORT_APP as SALARY_IMPORT_APP } from './salary.js';
+import { importSalaryHistory } from './salaryImport.js';
 import * as store from './store.js';
 import { state } from './store.js';
 import { alertMsg, dialog, toast } from './ui.js';
@@ -138,7 +140,7 @@ export function validateBackup(text) {
     return { data: res.data, info: { exportedAt: obj.meta?.exportedAt || null, legacy: res.report } };
   }
   if (!obj || typeof obj !== 'object' || obj.app !== APP_ID || !obj.data) {
-    return { error: `這不是「${APP_NAME}」或電腦版「AI記帳」的備份檔。請選擇檔名像「${APP_NAME}備份-日期.json」的檔案。` };
+    return { error: `這不是可以匯入的檔案。可以匯入的有：「${APP_NAME}」備份檔（${APP_NAME}備份-日期.json）、電腦版「AI記帳」備份檔、Excel 薪資匯入檔（薪資歷史-匯入用.json）。` };
   }
   if (obj.format > FORMAT) return { error: '這個備份檔來自較新版本的 App，請先更新 App 再匯入。' };
   const data = obj.data;
@@ -193,6 +195,13 @@ export async function importBackupFile(file) {
   } catch {
     await alertMsg('無法讀取檔案', '請確認檔案沒有損壞後再試一次。手機上的資料沒有任何變動。');
     return false;
+  }
+  // Excel 薪資匯入檔：合併進薪資，不取代其他資料
+  try {
+    const obj = JSON.parse(text);
+    if (obj?.app === SALARY_IMPORT_APP) return importSalaryHistory(obj);
+  } catch {
+    // 不是 JSON 時交給 validateBackup 回報
   }
   const res = validateBackup(text);
   if (res.error) {

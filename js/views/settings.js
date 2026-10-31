@@ -57,8 +57,8 @@ function settingsPage(el) {
       <h2 class="sec-h"><span>資料</span><span>上次備份：${lastBackupText()}</span></h2>
       <div class="list">
         <button type="button" class="row tap" data-act="backup"><span class="grow title">匯出備份檔</span>${icon('share', 'accent')}</button>
-        <button type="button" class="row tap" data-act="restore"><span class="grow"><span class="title">從備份檔還原</span>
-          <span class="detail">也可以匯入電腦版 AI記帳 的備份檔</span></span></button>
+        <button type="button" class="row tap" data-act="restore"><span class="grow"><span class="title">匯入備份檔</span>
+          <span class="detail">還原錢包日誌備份（取代全部資料）；也可匯入電腦版 AI記帳 備份，或 Excel 薪資匯入檔（只加入薪資單）</span></span></button>
         <button type="button" class="row tap" data-act="csv"><span class="grow"><span class="title">匯出 CSV</span>
           <span class="detail">可以用 Excel 開啟，不能用來還原</span></span></button>
       </div>
