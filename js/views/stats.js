@@ -4,7 +4,7 @@ import { catIcon, groupIcon, groupOf } from '../categories.js';
 import { icon } from '../icons.js';
 import {
   categoryTotals, dailyNet, dataYears, expenseEffect, groupByDay, groupTotals, monthTotals, noteTotals,
-  sumSeries, tagTotals, totals, txOfPeriod, yearSeries,
+  sumSeries, tagTotals, totals, txOfPeriod, yearExtras, yearSeries,
 } from '../ledger.js';
 import { bindRevealToggle, canHide, isHidden, MASK, money } from '../privacy.js';
 import { state } from '../store.js';
@@ -16,6 +16,7 @@ const period = { mode: 'month', month: thisMonth(), year: thisMonth().slice(0, 4
 let calDay = null; // 月曆上點選的日期
 let trendPick = null; // 年度趨勢上點選的月份索引（null = 預設）
 const DETAIL_MAX = 120;
+let ysOpen = false; // 年度收支明細是否展開（預設收起）
 
 const enc = encodeURIComponent;
 const periodYear = () => (period.mode === 'month' ? period.month.slice(0, 4) : period.year);
@@ -123,15 +124,71 @@ function delta(cur, prev, upIsGood) {
 }
 
 function kpiTiles() {
+  if (period.mode === 'year') return yearSummary();
   const { cur, prev, prevName } = periodTotals();
   if (!cur) return html`<div class="card empty-box"><p class="note">${periodName()}沒有資料</p></div>`;
   const bal = cur.income - cur.net;
-  return html`<div class="kpi-row" ${revealAttrs()}>
-    <div class="kpi"><span class="kpi-label">支出</span><b class="kpi-val">${money(cur.net)}</b>${delta(cur.net, prev?.net, false)}</div>
-    <div class="kpi"><span class="kpi-label">收入</span><b class="kpi-val">${money(cur.income)}</b>${delta(cur.income, prev?.income, true)}</div>
+  return html`<div class="kpi-row" data-reveal ${revealAttrs()}>
+    <div class="kpi"><span class="kpi-label">日常支出</span><b class="kpi-val">${money(cur.net)}</b>${delta(cur.net, prev?.net, false)}</div>
+    <div class="kpi"><span class="kpi-label">固定收入</span><b class="kpi-val">${money(cur.income)}</b>${delta(cur.income, prev?.income, true)}</div>
     <div class="kpi"><span class="kpi-label">結餘</span><b class="kpi-val">${money(bal)}</b>${prev ? delta(bal, prev.income - prev.net, true) : ''}</div>
   </div>
   ${kpiCaption(prev ? `▲▼ 與${prevName}比較` : '')}`;
+}
+
+/** 帶正負號的金額（額外收入可能是負的） */
+function signedMoney(n) {
+  if (isHidden()) return MASK;
+  return `${n < 0 ? '−' : '+'}${fmt(Math.abs(n))}`;
+}
+
+/**
+ * 年度摘要：固定收入＋額外收入－日常支出－固定支出－旅費＝結餘。
+ * 固定支出／額外收入／旅費只算年度（不分到月份），來源見 ledger.yearExtras。
+ */
+function yearSummary() {
+  const { cur, prev, prevName } = periodTotals();
+  const x = yearExtras(period.year);
+  if (!cur && !x.fixed.length && !x.extra.length && !x.trips.length) {
+    return html`<div class="card empty-box"><p class="note">${periodName()}沒有資料</p></div>`;
+  }
+  const income = cur?.income || 0;
+  const daily = cur?.net || 0;
+  const inTotal = income + x.extraTotal;
+  const outTotal = daily + x.fixedTotal + x.tripTotal;
+  const bal = inTotal - outTotal;
+  const today = todayStr();
+  const range = period.year === today.slice(0, 4) ? `1–${Number(today.slice(5, 7))} 月` : '全年';
+  const rate = inTotal > 0 ? `${isHidden() ? '**' : Math.round((bal / inTotal) * 100)}%` : '—';
+  const list = (arr) => arr.join(' · ') || '無';
+  const T = {
+    fixedIncome: { kind: 'in', sign: '＋', label: '固定收入', value: income, show: money(income), delta: delta(income, prev?.income, true), note: '薪水與每日記帳的收入' },
+    extraIncome: { kind: 'in', sign: '＋', label: '額外收入', value: Math.max(0, x.extraTotal), show: signedMoney(x.extraTotal), note: list(x.extra.map((e) => `${e.name} ${signedMoney(e.amount)}`)) },
+    daily: { kind: 'out', sign: '－', label: '日常支出', value: daily, show: money(daily), delta: delta(daily, prev?.net, false), note: '每日記帳（已扣退款）' },
+    fixed: { kind: 'out', sign: '－', label: '固定支出', value: x.fixedTotal, show: money(x.fixedTotal), note: list(x.fixed.map((f) => `${f.name} ${money(f.amount)}`)) },
+    trip: { kind: 'out', sign: '－', label: '旅費', value: x.tripTotal, show: money(x.tripTotal), note: list(x.trips.map((t) => (t.back ? `${t.name}（花費 ${money(t.cost)}、收回 ${money(t.back)}）` : `${t.name} ${money(t.net)}`))) },
+  };
+  const max = Math.max(1, ...Object.values(T).map((t) => t.value));
+  const row = (t) => html`<div class="ys-row ${t.kind}">
+      <div class="ys-row-head"><span class="ys-sign">${t.sign}</span><span class="ys-label">${t.label}</span>${t.delta || ''}<b class="ys-val">${t.show}</b></div>
+      <div class="ys-row-bar"><i style="width:${((t.value / max) * 100).toFixed(1)}%"></i></div>
+      <span class="ys-note">${t.note}</span></div>`;
+  return html`<section class="ys-hero" data-reveal ${revealAttrs()}>
+      <div class="ys-hero-top"><span>${period.year} 年結餘 · ${range}</span>
+        ${canHide() ? html`<span class="peek">${icon('eye')}${isHidden() ? '點一下顯示' : '點一下隱藏'}</span>` : ''}</div>
+      <div class="ys-hero-num">${money(bal)}</div>
+      <div class="ys-hero-sub"><span>收入 <b>${money(inTotal)}</b></span><span>支出 <b>${money(outTotal)}</b></span><span>儲蓄率 <b>${rate}</b></span></div>
+    </section>
+    <details class="card ys-sheet" ${ysOpen ? 'open' : ''}>
+      <summary class="ys-summary"><span class="ys-summary-t">收支明細</span>
+        <span class="ys-summary-n">固定收入、額外收入、日常支出、固定支出、旅費</span>${icon('chevronRight', 'ys-chev')}</summary>
+      <div class="ys-sub"><span>收入</span><b>${money(inTotal)}</b></div>
+      ${row(T.fixedIncome)}${row(T.extraIncome)}
+      <div class="ys-sub"><span>支出</span><b>${money(outTotal)}</b></div>
+      ${row(T.daily)}${row(T.fixed)}${row(T.trip)}
+      <div class="ys-total"><span>＝ 結餘</span><b>${money(bal)}</b></div>
+      ${prev ? html`<p class="ys-foot">▲▼ 日常收支與去年同期比較。固定支出、額外收入、旅費只計入年度，不分到月份。</p>` : html`<p class="ys-foot">固定支出、額外收入、旅費只計入年度，不分到月份。</p>`}
+    </details>`;
 }
 
 /** 摘要卡片可點一下切換顯示金額 */
@@ -141,7 +198,7 @@ function revealAttrs() {
 }
 
 function kpiCaption(text) {
-  const peek = canHide() ? html`<span class="peek-cap">${icon('eye')}${isHidden() ? '點數字顯示金額' : '點數字隱藏金額'}</span>` : '';
+  const peek = canHide() ? html`<span class="peek-cap">${icon('eye')}${isHidden() ? '點一下顯示' : '點一下隱藏'}</span>` : '';
   return text || peek ? html`<p class="kpi-cap"><span>${text}</span>${peek}</p>` : '';
 }
 
@@ -187,7 +244,10 @@ function overviewPage(el) {
         : ''}`,
   );
   bindPeriod(el, () => overviewPage(el));
-  bindRevealToggle(el.querySelector('.kpi-row'), () => overviewPage(el));
+  bindRevealToggle(el.querySelector('[data-reveal]'), () => overviewPage(el));
+  el.querySelector('.ys-sheet')?.addEventListener('toggle', (e) => {
+    ysOpen = e.target.open;
+  });
   if (period.mode === 'month' && list.length) renderCalendar(el.querySelector('.cal-card'), list);
   renderTrend(el.querySelector('.trend-card'));
 }
@@ -232,17 +292,17 @@ function renderTrend(card) {
   const m = series[sel];
   setHTML(
     card,
-    html`<div class="chart-head"><h2>${year} 年收支</h2>
-        <span class="legend"><span><i class="sw s-exp"></i>支出</span><span><i class="sw s-inc"></i>收入</span></span></div>
+    html`<div class="chart-head"><h2>${year} 年每月收支</h2>
+        <span class="legend"><span><i class="sw s-exp"></i>日常支出</span><span><i class="sw s-inc"></i>固定收入</span></span></div>
       <div class="chart-readout">${m
         ? html`<span class="rd-title">${Number(m.month.slice(5))}月${m.source === 'summary' ? '（彙總）' : ''}</span>
-            ${line('s-exp', '支出', m.net)}${line('s-inc', '收入', m.income)}
+            ${line('s-exp', '日常支出', m.net)}${line('s-inc', '固定收入', m.income)}
             ${m.source ? html`<span class="rd">結餘 <b class="num">${money(m.income - m.net)}</b></span>` : ''}`
-        : html`<span class="rd-title">全年</span>${line('s-exp', '支出', sum.net)}${line('s-inc', '收入', sum.income)}
+        : html`<span class="rd-title">全年</span>${line('s-exp', '日常支出', sum.net)}${line('s-inc', '固定收入', sum.income)}
             <span class="rd">結餘 <b class="num">${money(sum.income - sum.net)}</b></span>`}</div>
       <div class="chart-box"></div>
       <details class="chart-table"><summary>以表格檢視</summary>
-        <table><thead><tr><th>月份</th><th>支出</th><th>收入</th><th>結餘</th></tr></thead>
+        <table><thead><tr><th>月份</th><th>日常支出</th><th>固定收入</th><th>結餘</th></tr></thead>
           <tbody>${series.filter((x) => x.source).map((x) => html`<tr><td>${Number(x.month.slice(5))}月${x.source === 'summary' ? '＊' : ''}</td>
             <td>${money(x.net)}</td><td>${money(x.income)}</td><td>${money(x.income - x.net)}</td></tr>`)}
             <tr class="total"><td>合計</td><td>${money(sum.net)}</td><td>${money(sum.income)}</td><td>${money(sum.income - sum.net)}</td></tr></tbody></table>

@@ -601,3 +601,51 @@ main {
 .cal-day { margin-top: var(--s3); }
 .cal-day .day-h { margin-top: 0; }
 .cal-day .tx-row { background: var(--bg); }
+
+/* ============ 統計：年度摘要（結餘＝固定收入＋額外收入－日常支出－固定支出－旅費） ============ */
+.ys-hero {
+  position: relative; overflow: hidden; background: var(--ink); color: var(--on-ink);
+  border-radius: 24px; padding: 16px 18px 14px; margin-bottom: var(--s2);
+}
+:root[data-theme="dark"] .ys-hero { box-shadow: inset 0 0 0 1px rgb(233 196 106 / 22%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ys-hero { box-shadow: inset 0 0 0 1px rgb(233 196 106 / 22%); } }
+.ys-hero::after {
+  content: ""; position: absolute; right: -70px; top: -80px; width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, var(--acc) 0, transparent 70%); opacity: .25; pointer-events: none;
+}
+.ys-hero-top { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); font-size: 13px; color: var(--on-ink-muted); }
+.ys-hero-num { font-size: 38px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin: 2px 0 8px; }
+.ys-hero-sub { display: flex; flex-wrap: wrap; gap: 4px var(--s4); font-size: 12px; color: var(--on-ink-muted); }
+.ys-hero-sub b { color: var(--on-ink); font-weight: 700; font-size: 14px; margin-left: 2px; }
+
+.ys-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.ys-val { font-size: 19px; font-weight: 800; letter-spacing: -0.3px; white-space: nowrap; }
+.ys-note { font-size: 11.5px; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
+
+/* B：收支明細表 */
+.ys-sheet { padding: 6px var(--s4) 12px; margin-bottom: var(--s2); }
+.ys-sub { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; color: var(--muted); padding: 10px 0 2px; }
+.ys-row { padding: 8px 0; display: flex; flex-direction: column; gap: 4px; }
+.ys-row + .ys-row { border-top: 0.5px solid var(--sep); }
+.ys-row-head { display: flex; align-items: baseline; gap: 6px; }
+.ys-row-head .ys-label { font-size: 15px; color: var(--text); }
+.ys-row-head .delta { margin-left: 4px; }
+.ys-row-head .ys-val { margin-left: auto; font-size: 17px; }
+.ys-sign { width: 14px; font-weight: 800; color: var(--muted); flex: none; }
+.ys-row-bar { height: 6px; margin-left: 20px; }
+.ys-row-bar i { display: block; height: 100%; border-radius: 0 3px 3px 0; min-width: 2px; }
+.ys-row.in .ys-row-bar i { background: var(--viz-inc); }
+.ys-row.out .ys-row-bar i { background: var(--viz-exp); }
+.ys-row .ys-note { margin-left: 20px; }
+.ys-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1.5px solid var(--text); margin-top: 6px; padding-top: 10px; font-weight: 800; }
+.ys-total b { font-size: 20px; }
+
+.ys-hero[role="button"] { cursor: pointer; }
+.ys-summary { display: flex; align-items: center; gap: var(--s2); min-height: 44px; cursor: pointer; list-style: none; }
+.ys-summary::-webkit-details-marker { display: none; }
+.ys-summary-t { font-size: 16px; font-weight: 800; flex: none; }
+.ys-summary-n { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ys-chev { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; flex: none; }
+.ys-sheet[open] .ys-chev { transform: rotate(90deg); }
+.ys-sheet[open] .ys-summary-n { visibility: hidden; }
+.ys-foot { font-size: 11.5px; color: var(--muted); margin: var(--s3) 0 0; line-height: 1.4; }

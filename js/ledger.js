@@ -247,6 +247,66 @@ export function sumSeries(series) {
   };
 }
 
+// ---------- 年度獨立帳（固定支出、額外收入、旅費） ----------
+const sumBy = (list, f) => list.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+
+/**
+ * 某一年的獨立帳金額（只算年度，不分到月份）：
+ * - 有逐筆紀錄的年份用即時資料（固定支出、羽球、旅行）；
+ * - 沒有逐筆紀錄的年份（2024–2025）用電腦版匯入的「年度額外項目」，依名稱歸類：
+ *   名稱以固定支出項目開頭 → 固定支出；含「羽球」→ 額外收入；含旅程名稱 → 旅費；其餘 → 額外收入（可為負）。
+ * 回傳 { fixed: [{ name, amount }], extra: [{ name, amount }], trips: [{ name, cost, back, net }], fixedTotal, extraTotal, tripTotal }
+ * 金額正負：fixed.amount、trips.net 為花費（正數）；extra.amount 為淨收入（可為負）。
+ */
+export function yearExtras(year) {
+  const y = String(year);
+  const inYear = (d) => typeof d === 'string' && d.startsWith(y);
+  const fixed = [];
+  const extra = [];
+  const trips = [];
+
+  const liveFixed = new Set();
+  for (const f of state.fixedExpenses) {
+    const recs = (f.records || []).filter((r) => inYear(r.date));
+    if (!recs.length) continue;
+    fixed.push({ name: f.name, amount: sumBy(recs, (r) => r.amount) });
+    liveFixed.add(f.name);
+  }
+  const bRecs = state.badmintonRecords.filter((r) => inYear(r.date));
+  if (bRecs.length) extra.push({ name: '羽球', amount: sumBy(bRecs, (r) => r.income) - sumBy(bRecs, (r) => r.expense) });
+
+  const usedTrips = new Set();
+  for (const x of state.yearlyExtras.filter((e) => String(e.year) === y)) {
+    const inc = Number(x.income) || 0;
+    const exp = Number(x.expense) || 0;
+    const fixedName = state.fixedExpenses.map((f) => f.name).find((n) => x.name.startsWith(n));
+    const trip = state.trips.find((t) => t.name && x.name.includes(t.name));
+    if (fixedName) {
+      if (!liveFixed.has(fixedName)) fixed.push({ name: x.name, amount: exp - inc });
+    } else if (x.name.includes('羽球')) {
+      if (!bRecs.length) extra.push({ name: x.name, amount: inc - exp });
+    } else if (trip) {
+      usedTrips.add(trip.id);
+      trips.push({ name: x.name, cost: exp, back: inc, net: exp - inc });
+    } else {
+      extra.push({ name: x.name, amount: inc - exp });
+    }
+  }
+  for (const t of state.trips) {
+    if (usedTrips.has(t.id)) continue;
+    const recs = (t.records || []).filter((r) => inYear(r.date));
+    if (!recs.length) continue;
+    const cost = Math.round(sumBy(recs, (r) => r.amount * (r.rate || 1)));
+    trips.push({ name: t.name, cost, back: 0, net: cost });
+  }
+  return {
+    fixed, extra, trips,
+    fixedTotal: sumBy(fixed, (f) => f.amount),
+    extraTotal: sumBy(extra, (e) => e.amount),
+    tripTotal: sumBy(trips, (t) => t.net),
+  };
+}
+
 /** 有資料的年份（含月度彙總），由舊到新，並包含今年 */
 export function dataYears() {
   const ys = new Set([todayStr().slice(0, 4)]);
