@@ -96,6 +96,7 @@ a { color: inherit; text-decoration: none; }
 .center { text-align: center; }
 .grow { flex: 1; min-width: 0; }
 .icon { width: 24px; height: 24px; flex: none; }
+[hidden] { display: none !important; } /* 元件的 display 設定不可蓋過 hidden 屬性 */
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .inc { color: var(--inc); }
 
@@ -693,3 +694,14 @@ main {
   -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; margin: 0; padding: 0; border: 0; box-sizing: border-box;
 }
 .month-head .icon-btn, .period-nav .icon-btn { position: relative; z-index: 1; }
+
+/* ============ 獨立帳（固定支出、旅行、羽球、額外項目） ============ */
+.sub-head .title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.sub-head .title-row .link { flex: none; }
+#view > .btn-primary, #view > .btn-secondary { margin: var(--s2) 0; }
+.btn-primary .icon, .btn-secondary .icon { width: 20px; height: 20px; }
+.btn-secondary { gap: var(--s2); }
+.btn-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin: var(--s2) 0; }
+.form-seg { margin-bottom: var(--s3); }
+.form-block + .form-block, .form-seg + .form-block { margin-top: var(--s3); }
+.icon-btn:disabled { opacity: .25; }

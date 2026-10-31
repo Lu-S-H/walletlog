@@ -1,6 +1,7 @@
 import { DEFAULT_GROUPS, defaultCategories } from './categories.js';
 import * as db from './db.js';
 import { COLLECTIONS } from './db.js';
+import { migrateData } from './migrate.js';
 
 export function defaultSettings() {
   return {
@@ -59,7 +60,10 @@ function sortCollections() {
 }
 
 export async function load() {
-  const data = await db.loadAll();
+  let data = await db.loadAll();
+  const m = migrateData(data);
+  if (m.changed) await db.replaceAll(m.data); // 整理過的資料寫回（同一個交易）
+  data = m.data;
   state.settings = { ...defaultSettings(), ...(data.settings || {}) };
   for (const name of Object.keys(COLLECTIONS)) state[name] = data[name] || [];
   sortCollections();
@@ -110,7 +114,8 @@ export function snapshot() {
 }
 
 /** 整包取代。先寫入資料庫，成功後才更新畫面上的資料。 */
-export async function replaceAll(data) {
+export async function replaceAll(input) {
+  const data = migrateData(input).data;
   await db.replaceAll(data);
   state.settings = { ...defaultSettings(), ...(data.settings || {}) };
   for (const name of Object.keys(COLLECTIONS)) state[name] = [...(data[name] || [])];

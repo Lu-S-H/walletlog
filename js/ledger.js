@@ -1,4 +1,5 @@
 // 收支計算。退款從支出扣除、不算收入；固定支出／旅行／羽球是獨立帳，不在這裡計算。
+import { tripTotals } from './books.js';
 import { groupOf } from './categories.js';
 import { state } from './store.js';
 import { daysInMonth, monthOf, thisMonth, todayStr } from './util.js';
@@ -250,13 +251,21 @@ export function sumSeries(series) {
 // ---------- 年度獨立帳（固定支出、額外收入、旅費） ----------
 const sumBy = (list, f) => list.reduce((s, x) => s + (Number(f(x)) || 0), 0);
 
+/** 手動年度項目的類別：有指定就用指定的，否則依名稱判斷（電腦版匯入的項目沒有類別） */
+export function extraKind(x) {
+  if (x.kind === 'fixed' || x.kind === 'extra' || x.kind === 'trip') return x.kind;
+  if (state.fixedExpenses.some((f) => f.name && String(x.name).startsWith(f.name))) return 'fixed';
+  if (state.trips.some((t) => t.name && String(x.name).includes(t.name))) return 'trip';
+  return 'extra';
+}
+
 /**
  * 某一年的獨立帳金額（只算年度，不分到月份）：
- * - 有逐筆紀錄的年份用即時資料（固定支出、羽球、旅行）；
- * - 沒有逐筆紀錄的年份（2024–2025）用電腦版匯入的「年度額外項目」，依名稱歸類：
- *   名稱以固定支出項目開頭 → 固定支出；含「羽球」→ 額外收入；含旅程名稱 → 旅費；其餘 → 額外收入（可為負）。
- * 回傳 { fixed: [{ name, amount }], extra: [{ name, amount }], trips: [{ name, cost, back, net }], fixedTotal, extraTotal, tripTotal }
+ * - 即時資料：固定支出（開啟「計入年度」的項目）、羽球收支、旅程（花費−收回）；
+ * - 手動項目（年度額外項目，含電腦版匯入的 2024–2025 數字）：同名的固定支出或羽球在那一年有紀錄時，以即時資料為準。
+ * 回傳 { fixed: [{ name, amount, ref }], extra: [{ name, amount, ref }], trips: [{ name, cost, back, net, ref }], fixedTotal, extraTotal, tripTotal }
  * 金額正負：fixed.amount、trips.net 為花費（正數）；extra.amount 為淨收入（可為負）。
+ * ref：{ type: 'fixed' | 'badminton' | 'trip' | 'manual', id }，頁面用來連到對應的帳本或編輯手動項目。
  */
 export function yearExtras(year) {
   const y = String(year);
@@ -269,35 +278,33 @@ export function yearExtras(year) {
   for (const f of state.fixedExpenses) {
     const recs = (f.records || []).filter((r) => inYear(r.date));
     if (!recs.length) continue;
-    fixed.push({ name: f.name, amount: sumBy(recs, (r) => r.amount) });
     liveFixed.add(f.name);
+    if (f.syncExtras === false) continue; // 關閉「計入年度」
+    fixed.push({ name: f.name, amount: sumBy(recs, (r) => r.amount), ref: { type: 'fixed', id: f.id } });
   }
   const bRecs = state.badmintonRecords.filter((r) => inYear(r.date));
-  if (bRecs.length) extra.push({ name: '羽球', amount: sumBy(bRecs, (r) => r.income) - sumBy(bRecs, (r) => r.expense) });
+  if (bRecs.length) extra.push({ name: '羽球', amount: sumBy(bRecs, (r) => r.income) - sumBy(bRecs, (r) => r.expense), ref: { type: 'badminton' } });
 
-  const usedTrips = new Set();
   for (const x of state.yearlyExtras.filter((e) => String(e.year) === y)) {
     const inc = Number(x.income) || 0;
     const exp = Number(x.expense) || 0;
-    const fixedName = state.fixedExpenses.map((f) => f.name).find((n) => x.name.startsWith(n));
-    const trip = state.trips.find((t) => t.name && x.name.includes(t.name));
-    if (fixedName) {
-      if (!liveFixed.has(fixedName)) fixed.push({ name: x.name, amount: exp - inc });
-    } else if (x.name.includes('羽球')) {
-      if (!bRecs.length) extra.push({ name: x.name, amount: inc - exp });
-    } else if (trip) {
-      usedTrips.add(trip.id);
-      trips.push({ name: x.name, cost: exp, back: inc, net: exp - inc });
+    const ref = { type: 'manual', id: x.id };
+    const kind = extraKind(x);
+    if (kind === 'fixed') {
+      const fixedName = state.fixedExpenses.map((f) => f.name).find((n) => String(x.name).startsWith(n));
+      if (!x.kind && fixedName && liveFixed.has(fixedName)) continue; // 那一年已有逐筆紀錄
+      fixed.push({ name: x.name, amount: exp - inc, ref });
+    } else if (kind === 'trip') {
+      trips.push({ name: x.name, cost: exp, back: inc, net: exp - inc, ref });
     } else {
-      extra.push({ name: x.name, amount: inc - exp });
+      if (!x.kind && String(x.name).includes('羽球') && bRecs.length) continue; // 那一年已有羽球收支
+      extra.push({ name: x.name, amount: inc - exp, ref });
     }
   }
   for (const t of state.trips) {
-    if (usedTrips.has(t.id)) continue;
-    const recs = (t.records || []).filter((r) => inYear(r.date));
-    if (!recs.length) continue;
-    const cost = Math.round(sumBy(recs, (r) => r.amount * (r.rate || 1)));
-    trips.push({ name: t.name, cost, back: 0, net: cost });
+    const tt = tripTotals(t, y);
+    if (!tt.count) continue;
+    trips.push({ name: t.name, cost: tt.spend, back: tt.back, net: tt.net, ref: { type: 'trip', id: t.id } });
   }
   return {
     fixed, extra, trips,
