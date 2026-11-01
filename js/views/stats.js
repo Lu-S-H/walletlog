@@ -218,6 +218,8 @@ function overviewPage(el) {
       ${info.summaryOnly ? html`<p class="field-note">${periodName()}只有電腦版的月度彙總，沒有分類明細。</p>` : ''}
       ${info.partial ? html`<p class="field-note">${periodName()}有 ${periodTotals().cur.summaryMonths} 個月只有月度彙總，分類統計只包含有明細的月份。</p>` : ''}
 
+      ${period.mode === 'month' && list.length ? html`<section class="card chart-card cal-card"></section>` : ''}
+
       ${groups.length
         ? html`<section class="card chart-card">
             <div class="chart-head"><h2>支出分類</h2><span class="note num">${money(totalNet)}</span></div>
@@ -228,8 +230,6 @@ function overviewPage(el) {
             })))}
           </section>`
         : ''}
-
-      ${period.mode === 'month' && list.length ? html`<section class="card chart-card cal-card"></section>` : ''}
 
       <section class="card chart-card trend-card"></section>
 
