@@ -79,10 +79,46 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
     right: { label: '儲存', strong: true, onClick: () => save() },
     render: (b) => {
       body = b;
+      bindOnce();
       draw();
     },
   });
   sheet.el.classList.add('slip-sheet');
+
+  /**
+   * 掛在整個面板上的事件（委派），只在打開面板時掛一次。
+   * 不能放在 draw() 裡：draw() 每次重畫都會執行，面板本身不會換掉，事件會越掛越多
+   * （曾因此按一次「＋ 免稅加班」就加出好幾列）。
+   */
+  function bindOnce() {
+    body.addEventListener('input', (e) => {
+      const k = e.target.dataset?.kind;
+      if (!k) return;
+      f[k][Number(e.target.dataset.i)].value = e.target.value;
+      update();
+    });
+    body.addEventListener('click', (e) => {
+      const del = e.target.closest('[data-del]')?.dataset.del;
+      const add = e.target.closest('[data-add]')?.dataset.add;
+      const custom = e.target.closest('[data-custom]')?.dataset.custom;
+      if (del) {
+        const [k, i] = del.split(':');
+        f[k].splice(Number(i), 1);
+        draw();
+      } else if (add) {
+        const [k, ...n] = add.split(':');
+        f[k].push({ name: n.join(':'), value: '' });
+        draw();
+        focusLast(k);
+      } else if (custom) {
+        const name = window.prompt(custom === 'deduct' ? '扣除項目名稱' : '應發項目名稱');
+        if (!name || !name.trim()) return;
+        f[custom].push({ name: name.trim(), value: '' });
+        draw();
+        focusLast(custom);
+      }
+    });
+  }
 
   // ---------- 畫面 ----------
   function rows(kind) {
@@ -178,33 +214,6 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
       if (!p) return;
       f.payment = f.payment === p ? '' : p;
       body.querySelectorAll('.sl-payments button').forEach((b) => b.classList.toggle('on', b.dataset.pay === f.payment));
-    });
-    body.addEventListener('input', (e) => {
-      const k = e.target.dataset?.kind;
-      if (!k) return;
-      f[k][Number(e.target.dataset.i)].value = e.target.value;
-      update();
-    });
-    body.addEventListener('click', (e) => {
-      const del = e.target.closest('[data-del]')?.dataset.del;
-      const add = e.target.closest('[data-add]')?.dataset.add;
-      const custom = e.target.closest('[data-custom]')?.dataset.custom;
-      if (del) {
-        const [k, i] = del.split(':');
-        f[k].splice(Number(i), 1);
-        draw();
-      } else if (add) {
-        const [k, ...n] = add.split(':');
-        f[k].push({ name: n.join(':'), value: '' });
-        draw();
-        focusLast(k);
-      } else if (custom) {
-        const name = window.prompt(custom === 'deduct' ? '扣除項目名稱' : '應發項目名稱');
-        if (!name || !name.trim()) return;
-        f[custom].push({ name: name.trim(), value: '' });
-        draw();
-        focusLast(custom);
-      }
     });
     body.querySelector('#sl-link').addEventListener('change', (e) => {
       f.link = e.target.value === '' ? null : e.target.value;
