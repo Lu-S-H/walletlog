@@ -11,11 +11,23 @@ import { openTagPicker } from './tags.js';
 
 const MAX_DIGITS = 9;
 
+// 連續記帳時延續上一筆的日期（例如補記 10/31 的多筆帳）；超過 15 分鐘沒記就恢復成今天，避免之後記新帳時日期還停在舊的那天
+const STICKY_MS = 15 * 60 * 1000;
+let sticky = null; // { date, at }
+
+export function stickyDate() {
+  return sticky && Date.now() - sticky.at < STICKY_MS ? sticky.date : null;
+}
+
+function rememberDate(date) {
+  sticky = { date, at: Date.now() };
+}
+
 /**
  * openAddSheet({ date })：新增；openAddSheet({ tx })：編輯既有明細；
  * preset = { category, note, amount, payment }：首頁「快速記一筆」預先帶入（仍可修改後再按完成）
  */
-export function openAddSheet({ tx = null, date = todayStr(), type = 'expense', preset = null } = {}) {
+export function openAddSheet({ tx = null, date = stickyDate() || todayStr(), type = 'expense', preset = null } = {}) {
   if (tx?.salaryId) {
     // 薪資單連結的收入：直接開薪資單編輯（金額、日期由薪資單決定）
     const slip = state.salarySlips.find((s) => s.id === tx.salaryId);
@@ -96,6 +108,7 @@ export function openAddSheet({ tx = null, date = todayStr(), type = 'expense', p
       });
       els.dateInput.addEventListener('change', () => {
         if (els.dateInput.value) f.date = els.dateInput.value;
+        if (!tx) rememberDate(f.date);
         renderDate();
       });
       body.querySelector('.tag-btn').addEventListener('click', () =>
@@ -174,6 +187,7 @@ export function openAddSheet({ tx = null, date = todayStr(), type = 'expense', p
     const n = diffDays(f.date, todayStr());
     const rel = n === 0 ? '今天 ' : n === 1 ? '昨天 ' : '';
     els.dateText.textContent = `${rel}${formatShortDate(f.date)}（${weekdayName(f.date)}）`;
+    els.dateText.parentElement.classList.toggle('not-today', n !== 0); // 不是今天時用金色提醒
   }
 
   function renderTags() {
@@ -247,6 +261,7 @@ export function openAddSheet({ tx = null, date = todayStr(), type = 'expense', p
       ts: tx?.ts ?? Date.now(),
     };
     store.put('transactions', rec);
+    if (!tx) rememberDate(rec.date);
     const newTags = rec.tags.filter((t) => !s.tags.includes(t));
     store.saveSettings({ lastPayment: rec.payment || s.lastPayment, ...(newTags.length ? { tags: [...s.tags, ...newTags] } : {}) });
     sheet.close();

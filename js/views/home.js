@@ -121,7 +121,8 @@ export function renderHome(el) {
     // 打開最早那筆沒有薪資單的薪水所屬的薪資月份（入帳月的前一個月）
     focusSalaryMonth(addMonths(monthOf(e.currentTarget.dataset.salary), -1));
   });
-  el.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => openAddSheet()));
+  // 「今天還沒有紀錄」的按鈕一定記在今天；其他新增延續上一筆的日期（15 分鐘內）
+  el.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => openAddSheet({ date: today })));
   el.querySelectorAll('[data-quick]').forEach((b) =>
     b.addEventListener('click', () => {
       const q = quick[Number(b.dataset.quick)];

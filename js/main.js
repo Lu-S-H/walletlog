@@ -3,7 +3,7 @@ import { state } from './store.js';
 import { icon } from './icons.js';
 import { toast } from './ui.js';
 import { html, setHTML, thisMonth, todayStr } from './util.js';
-import { openAddSheet } from './views/add.js';
+import { openAddSheet, stickyDate } from './views/add.js';
 import { renderHome } from './views/home.js';
 import { currentMonth, renderList } from './views/list.js';
 import { renderMore } from './views/more.js';
@@ -99,11 +99,16 @@ function scheduleRender() {
   });
 }
 
-// 右下角的「＋」：記一筆。在明細頁看其他月份時，預設記在那個月的 1 號（看本月時是今天）
+// 右下角的「＋」：記一筆。
+// 剛記過帳（15 分鐘內）時延續上一筆的日期；否則是今天，在明細頁看其他月份時是那個月的 1 號。
 setHTML(fabEl, html`${icon('plus')}`);
 fabEl.addEventListener('click', () => {
-  const m = route().tab === 'list' ? currentMonth() : thisMonth();
-  openAddSheet({ date: m === thisMonth() ? todayStr() : `${m}-01` });
+  const onList = route().tab === 'list';
+  const m = onList ? currentMonth() : thisMonth();
+  const last = stickyDate();
+  // 在明細頁切到別的月份時，以看的月份為準（上一筆日期不在這個月就不延續）
+  const date = last && (!onList || last.startsWith(m)) ? last : m === thisMonth() ? todayStr() : `${m}-01`;
+  openAddSheet({ date });
 });
 
 tabbarEl.addEventListener('click', (e) => {

@@ -754,3 +754,7 @@ main {
 main { padding-bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + 96px); }
 /* 提示訊息放在＋上方 */
 .toast { bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + 86px); }
+
+/* 記一筆：日期不是今天時用金色提醒 */
+.meta-chip.date-chip.not-today { color: var(--acc-text); box-shadow: inset 0 0 0 1.5px var(--acc); }
+.meta-chip.date-chip.not-today .icon { color: var(--acc-text); }
