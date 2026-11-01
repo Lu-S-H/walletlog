@@ -4,9 +4,10 @@ import { catIcon, groupIcon } from '../categories.js';
 import { icon } from '../icons.js';
 import { categoryTotals, elapsedDays, groupTotals, prevMonthSamePeriod, quickSuggestions, totals, txOfMonth } from '../ledger.js';
 import { bindRevealToggle, canHide, isHidden, money } from '../privacy.js';
-import { unlinkedSalaryTx } from '../salary.js';
+import { openSheet, toast } from '../ui.js';
+import { autoSalaryTx, clearAutoSalaryFlags, missingSlipMonths } from '../salary.js';
 import { state } from '../store.js';
-import { addMonths, fmt, formatMonth, html, monthOf, setHTML, thisMonth, todayStr, weekdayName } from '../util.js';
+import { dayTitle, fmt, formatMonth, html, setHTML, thisMonth, todayStr, weekdayName } from '../util.js';
 import { openAddSheet } from './add.js';
 import { focusSalaryMonth } from './salary.js';
 import { openSearch } from './search.js';
@@ -27,7 +28,8 @@ export function renderHome(el) {
   const groups = groupTotals(categoryTotals(list)).filter((g) => g.net > 0).slice(0, 3);
   const quick = quickSuggestions();
   const remind = backupReminder();
-  const unlinked = unlinkedSalaryTx();
+  const missing = missingSlipMonths();
+  const autoTx = autoSalaryTx();
   const [, m, d] = today.split('-').map(Number);
 
   let pace = '';
@@ -75,15 +77,19 @@ export function renderHome(el) {
         ${pace}
       </section>
 
-      ${remind || unlinked.length
+      ${remind || missing.length || autoTx.length
         ? html`<div class="notices">
             ${remind
               ? html`<div class="notice"><span>💾</span><span class="grow">${remind.never ? '還沒有備份過' : `已經 ${remind.days} 天沒有備份`}</span>
                   <button type="button" class="link strong" data-backup>備份</button><button type="button" class="link" data-snooze>明天</button></div>`
               : ''}
-            ${unlinked.length
-              ? html`<a class="notice" href="#salary" data-salary="${unlinked.map((t) => t.date).sort()[0]}"><span>💰</span>
-                  <span class="grow"><b>${unlinked.length} 筆薪水</b>還沒有薪資單（${monthsLabel(unlinked)}）</span><span class="go">補登 ›</span></a>`
+            ${missing.length
+              ? html`<a class="notice" href="#salary" data-salary="${missing[0]}"><span>💰</span>
+                  <span class="grow"><b>${monthsLabel(missing)}</b>的薪資單還沒填</span><span class="go">填寫 ›</span></a>`
+              : ''}
+            ${autoTx.length
+              ? html`<button type="button" class="notice" data-auto><span>🔍</span>
+                  <span class="grow"><b>${autoTx.length} 筆收入</b>是舊版薪資單自動產生的，請確認有沒有重複</span><span class="go">檢查 ›</span></button>`
               : ''}
           </div>`
         : ''}
@@ -118,9 +124,9 @@ export function renderHome(el) {
   el.querySelector('[data-backup]')?.addEventListener('click', () => exportBackup());
   el.querySelector('[data-snooze]')?.addEventListener('click', () => snoozeBackupReminder());
   el.querySelector('[data-salary]')?.addEventListener('click', (e) => {
-    // 打開最早那筆沒有薪資單的薪水所屬的薪資月份（入帳月的前一個月）
-    focusSalaryMonth(addMonths(monthOf(e.currentTarget.dataset.salary), -1));
+    focusSalaryMonth(e.currentTarget.dataset.salary); // 打開最早還沒填的那個月
   });
+  el.querySelector('[data-auto]')?.addEventListener('click', () => reviewAutoSalary());
   // 「今天還沒有紀錄」的按鈕一定記在今天；其他新增延續上一筆的日期（15 分鐘內）
   el.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => openAddSheet({ date: today })));
   el.querySelectorAll('[data-quick]').forEach((b) =>
@@ -133,10 +139,45 @@ export function renderHome(el) {
   if (todayEl) bindTxRows(todayEl);
 }
 
-/** 「6–10 月」或「10 月」 */
-function monthsLabel(txs) {
-  const ms = txs.map((t) => Number(t.date.slice(5, 7)));
-  const lo = Math.min(...ms);
-  const hi = Math.max(...ms);
-  return lo === hi ? `${lo} 月` : `${lo}–${hi} 月`;
+/** ['2026-05', …, '2026-10'] → 「5–10 月」；跨年時加年份 */
+function monthsLabel(months) {
+  const label = (m) => `${Number(m.slice(5))} 月`;
+  const first = months[0];
+  const last = months.at(-1);
+  if (first === last) return label(first);
+  if (first.slice(0, 4) !== last.slice(0, 4)) return `${first.slice(0, 4)}/${Number(first.slice(5))} – ${last.slice(0, 4)}/${Number(last.slice(5))}`;
+  return `${Number(first.slice(5))}–${label(last)}`;
+}
+
+/**
+ * 舊版存薪資單時會自動新增收入明細；改成獨立後這些明細保留，
+ * 讓使用者逐筆確認：和自己記的重複就刪掉（點一筆可以編輯／刪除），沒問題就按「都確認了」。
+ */
+function reviewAutoSalary() {
+  const sheet = openSheet({
+    title: '確認收入明細',
+    right: { label: '都確認了', strong: true, onClick: () => done() },
+    render: (body) => {
+      const list = autoSalaryTx().sort((a, b) => (a.date < b.date ? 1 : -1));
+      setHTML(
+        body,
+        html`<p class="field-note" style="margin:0 0 var(--s3)">以下是以前存薪資單時，App 自動新增的收入明細。現在薪資單和收支明細已經分開，請確認這些是否和你自己記的薪水重複：重複的點進去刪除，其餘按右上角「都確認了」。</p>
+          ${list.length
+            ? html`${groupDays(list).map((g) => html`<h3 class="day-h"><span>${dayTitle(g.date)}</span></h3><div class="tx-list">${g.items.map(txRow)}</div>`)}`
+            : html`<div class="empty-box"><p class="note">都處理完了</p></div>`}`,
+      );
+      bindTxRows(body);
+    },
+  });
+  function done() {
+    clearAutoSalaryFlags();
+    sheet.close();
+    toast('已確認');
+  }
+}
+
+function groupDays(list) {
+  const map = new Map();
+  for (const t of list) map.set(t.date, [...(map.get(t.date) || []), t]);
+  return [...map.entries()].map(([date, items]) => ({ date, items }));
 }

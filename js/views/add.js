@@ -6,7 +6,6 @@ import * as store from '../store.js';
 import { state } from '../store.js';
 import { bindSegmented, confirmDanger, openSheet, toast } from '../ui.js';
 import { diffDays, fmt, formatShortDate, html, setHTML, todayStr, uid, weekdayName } from '../util.js';
-import { openSlipEditor } from './slip.js';
 import { openTagPicker } from './tags.js';
 
 const MAX_DIGITS = 9;
@@ -33,14 +32,6 @@ function announceDate(date) {
  * preset = { category, note, amount, payment }：首頁「快速記一筆」預先帶入（仍可修改後再按完成）
  */
 export function openAddSheet({ tx = null, date = stickyDate() || todayStr(), type = 'expense', preset = null } = {}) {
-  if (tx?.salaryId) {
-    // 薪資單連結的收入：直接開薪資單編輯（金額、日期由薪資單決定）
-    const slip = state.salarySlips.find((s) => s.id === tx.salaryId);
-    if (slip) {
-      openSlipEditor({ slip });
-      return;
-    }
-  }
   const s = state.settings;
   const f = {
     type: tx?.type || type,

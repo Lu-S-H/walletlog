@@ -2,6 +2,8 @@
 // 1. 旅程與固定支出的每筆紀錄補上 id（編輯用），旅程紀錄補上類型（花費／收回）。
 // 2. 電腦版「年度額外項目」裡和旅程重複的旅費：花費金額和旅程一致時，把「收回」轉成旅程裡的收回紀錄，
 //    並移除這個年度項目，改由旅程即時計算（年度結餘不變）。已和使用者確認（2026-10-31）。
+// 3. 薪資單和收支明細改為完全獨立（2026-11-01）：解除舊版的連結（明細上的 salaryId、薪資單上的 txId）。
+//    舊版自動產生的收入明細保留（autoSalary 標記留著，首頁會請使用者確認是否重複）。
 import { toTWD } from './books.js';
 import { uid } from './util.js';
 
@@ -25,6 +27,18 @@ export function migrateData(data) {
     }),
   }));
 
+  const transactions = (data.transactions || []).map((t) => {
+    if (!t.salaryId) return t;
+    changed = true;
+    const { salaryId, ...rest } = t;
+    return rest;
+  });
+  const salarySlips = (data.salarySlips || []).map((s) => {
+    if (!s.txId) return s;
+    changed = true;
+    return { ...s, txId: null };
+  });
+
   const fixedExpenses = (data.fixedExpenses || []).map((f) => ({ ...f, records: (f.records || []).map((r) => withId('r', r)) }));
 
   const yearlyExtras = [];
@@ -47,5 +61,5 @@ export function migrateData(data) {
     yearlyExtras.push(x);
   }
 
-  return { data: { ...data, trips, fixedExpenses, yearlyExtras }, changed };
+  return { data: { ...data, transactions, salarySlips, trips, fixedExpenses, yearlyExtras }, changed };
 }

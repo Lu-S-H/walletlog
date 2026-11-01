@@ -11,7 +11,7 @@ export function txRow(t) {
   return html`<button type="button" class="tx-row" data-tx="${t.id}">
     <span class="ci">${catIcon(s, t.type, t.category)}</span>
     <span class="grow">
-      <span class="title">${t.category}${t.type === 'refund' ? html`<em class="badge refund">退款</em>` : ''}${t.salaryId ? html`<em class="badge">薪資單</em>` : ''}</span>
+      <span class="title">${t.category}${t.type === 'refund' ? html`<em class="badge refund">退款</em>` : ''}</span>
       <span class="detail">${detail || '　'}${(t.tags || []).map((tag) => html`<i class="tag">#${tag}</i>`)}</span>
     </span>
     <span class="amt num ${t.type}">${sign}${fmt(t.amount)}</span>

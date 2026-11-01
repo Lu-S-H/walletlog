@@ -1,12 +1,12 @@
-// 薪資單編輯：月薪單（逐項）／獎金單；儲存時自動產生或連結收入明細
+// 薪資單編輯：月薪單（逐項）／獎金單。只記錄薪資組成，和收支明細完全獨立（發薪時另外記一筆收入）
 import { icon } from '../icons.js';
 import { paymentUsage, sortByUsage } from '../ledger.js';
 import {
-  deleteSlip, DEFAULT_SALARY_ITEMS, ITEM_ALIAS, lastMonthlySlip, linkCandidates, SALARY_CATEGORY, saveSlip, slipFullName, slipTotals,
+  deleteSlip, DEFAULT_SALARY_ITEMS, ITEM_ALIAS, lastMonthlySlip, saveSlip, slipFullName, slipTotals,
 } from '../salary.js';
 import { state } from '../store.js';
-import { alertMsg, bindSegmented, dialog, openSheet, toast } from '../ui.js';
-import { addMonths, daysInMonth, fmt, formatMonth, formatShortDate, html, isValidDateStr, isValidMonthStr, setHTML, thisMonth, todayStr, uid } from '../util.js';
+import { alertMsg, bindSegmented, confirmDanger, openSheet, toast } from '../ui.js';
+import { addMonths, daysInMonth, fmt, formatMonth, html, isValidDateStr, isValidMonthStr, setHTML, thisMonth, todayStr, uid } from '../util.js';
 
 const parseAmount = (v) => {
   const n = Number(String(v).replace(/[,，\s]/g, ''));
@@ -48,8 +48,6 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
     note: slip?.note || '',
     earn: [],
     deduct: [],
-    link: slip?.txId || null, // null = 新增一筆；'none' = 不產生
-    linkTouched: !!slip,
   };
   const fromLines = (lines) => {
     f.earn = lines.filter((l) => l.amount > 0).map((l) => ({ name: l.name, value: String(l.amount), note: l.note || '' }));
@@ -166,13 +164,11 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
         ${f.deduct.length ? html`<div class="form">${rows('deduct')}</div>` : ''}
         ${addChips('deduct')}
 
-        <h2 class="sec-h">對應的收入明細</h2>
-        <div class="form"><div class="field"><label for="sl-link">收入明細</label><select id="sl-link"></select></div></div>
-        <p class="field-note sl-link-note"></p>
 
         <div class="form" style="margin-top:var(--s4)">
           <div class="field"><input id="sl-note" class="wide" type="text" value="${f.note}" placeholder="備註（選填）" autocomplete="off"></div>
         </div>
+        <p class="field-note">薪資單只記錄薪資組成，不會新增或改動收支明細；發薪時請另外用「＋」記一筆收入。</p>
         ${slip ? html`<div class="list" style="margin-top:var(--s5)"><button type="button" class="row tap danger" data-remove>刪除薪資單</button></div>` : ''}`,
     );
     bind();
@@ -183,7 +179,6 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
     bindSegmented(body, (_, v) => {
       f.kind = v;
       f.payDate = '';
-      f.linkTouched = false;
       resetForKind();
       draw();
     });
@@ -215,11 +210,6 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
       f.payment = f.payment === p ? '' : p;
       body.querySelectorAll('.sl-payments button').forEach((b) => b.classList.toggle('on', b.dataset.pay === f.payment));
     });
-    body.querySelector('#sl-link').addEventListener('change', (e) => {
-      f.link = e.target.value === '' ? null : e.target.value;
-      f.linkTouched = true;
-      update();
-    });
     body.querySelector('#sl-note').addEventListener('input', (e) => (f.note = e.target.value));
     body.querySelector('[data-remove]')?.addEventListener('click', () => remove());
   }
@@ -242,7 +232,7 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
     return out;
   }
 
-  /** 金額或日期變動時：更新合計、實領，以及收入明細的連結選項 */
+  /** 金額變動時：更新合計與實領 */
   function update() {
     const lines = currentLines();
     const t = slipTotals({ lines });
@@ -254,29 +244,6 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
         <b class="sl-net-v">${fmt(t.net)}</b>
         <span class="sl-net-s">應發 ${fmt(t.earn)}　應扣 ${fmt(t.deduct)}</span>`,
     );
-
-    const draft = { id: slip?.id || '__new__', period: f.period, payDate: f.payDate };
-    const cands = f.payDate ? linkCandidates(draft, t.net) : [];
-    if (!f.linkTouched) {
-      const exact = cands.find((c) => c.amount === t.net && c.category === SALARY_CATEGORY && c.date.slice(0, 7) === f.payDate.slice(0, 7));
-      f.link = exact ? exact.id : null;
-    }
-    if (f.link && f.link !== 'none' && !cands.some((c) => c.id === f.link)) f.link = null;
-    const sel = body.querySelector('#sl-link');
-    const label = (c) => `${formatShortDate(c.date)} ${c.category}${c.note ? ` · ${c.note}` : ''} ${fmt(c.amount)}${c.salaryId && c.salaryId === slip?.id ? '（目前）' : ''}`;
-    setHTML(
-      sel,
-      html`<option value="">${t.net > 0 && f.payDate ? '新增一筆收入明細' : '不產生收入明細'}</option>
-        ${cands.map((c) => html`<option value="${c.id}" ${c.id === f.link ? 'selected' : ''}>${label(c)}</option>`)}`,
-    );
-    const chosen = cands.find((c) => c.id === f.link);
-    body.querySelector('.sl-link-note').textContent = !f.payDate
-      ? '沒有入帳日時不會產生收入明細（例如過去月份的紀錄）。'
-      : t.net <= 0
-        ? '實領為 0，不會產生收入明細。'
-        : chosen
-          ? `會和這筆既有明細連結，金額改成 ${fmt(t.net)}、日期改成 ${formatShortDate(f.payDate)}，不會重複記帳。`
-          : `儲存時會新增一筆「收入 · ${SALARY_CATEGORY}」${fmt(t.net)}，日期 ${formatShortDate(f.payDate)}。如果這筆薪水之前已經記過，請在上面選它，避免重複。`;
   }
 
   // ---------- 儲存／刪除 ----------
@@ -298,32 +265,16 @@ export function openSlipEditor({ slip = null, kind = 'monthly', period = thisMon
       payment: f.payment,
       lines,
       note: f.note.trim(),
-      txId: slip?.txId || null,
       source: slip?.source || 'app',
     };
-    const saved = saveSlip(next, { linkTxId: f.link && f.link !== 'none' ? f.link : null });
+    const saved = saveSlip(next);
     sheet.close();
-    toast(`已儲存 ${slipFullName(saved)}${saved.txId ? '，收入明細已同步' : ''}`);
+    toast(`已儲存 ${slipFullName(saved)}`);
   }
 
   async function remove() {
-    const tx = slip.txId ? state.transactions.find((t) => t.id === slip.txId) : null;
-    const choice = await dialog({
-      title: `刪除「${slipFullName(slip)}」？`,
-      message: tx ? `這張薪資單連結了 ${formatShortDate(tx.date)} 的收入明細 ${fmt(tx.amount)}。` : '',
-      buttons: tx
-        ? [
-            { label: '連同收入明細一起刪除', value: 'both', role: 'destructive' },
-            { label: '只刪薪資單（保留收入明細）', value: 'slip' },
-            { label: '取消', value: null, role: 'cancel' },
-          ]
-        : [
-            { label: '取消', value: null, role: 'cancel' },
-            { label: '刪除', value: 'slip', role: 'destructive' },
-          ],
-    });
-    if (!choice) return;
-    deleteSlip(slip, choice === 'both');
+    if (!(await confirmDanger(`刪除「${slipFullName(slip)}」？`, '只刪除薪資單，收支明細不受影響。'))) return;
+    deleteSlip(slip);
     sheet.close();
     toast('已刪除薪資單');
   }

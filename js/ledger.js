@@ -190,7 +190,7 @@ export function quickSuggestions(limit = 4, now = new Date()) {
   const fromStr = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-${String(from.getDate()).padStart(2, '0')}`;
   const groups = new Map();
   for (const t of state.transactions) {
-    if (t.type !== 'expense' || !t.note || t.date < fromStr || t.salaryId) continue;
+    if (t.type !== 'expense' || !t.note || t.date < fromStr) continue;
     const key = `${t.note}|${t.category}`;
     let g = groups.get(key);
     if (!g) groups.set(key, (g = { note: t.note, category: t.category, count: 0, amounts: new Map(), payments: new Map() }));

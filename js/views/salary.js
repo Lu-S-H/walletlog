@@ -129,12 +129,13 @@ function lineRows(lines) {
 }
 
 function payInfo(slip) {
-  const tx = slip.txId ? state.transactions.find((t) => t.id === slip.txId) : null;
-  const parts = [slip.payDate ? `${formatShortDate(slip.payDate)} 入帳` : '未填入帳日', slip.payment].filter(Boolean);
-  return { text: parts.join(' · '), tx };
+  return [slip.payDate ? `${formatShortDate(slip.payDate)} 入帳` : '', slip.payment].filter(Boolean).join(' · ');
 }
 
+const periodTotal = (month) => sortedSlips().filter((s) => s.period === month).reduce((sum, x) => sum + slipTotals(x).net, 0);
+
 // ---------- 月 ----------
+/** 一個薪資月份：實領合計＝月薪單＋同月份的獎金／禮金 */
 function monthView() {
   const slips = sortedSlips().filter((s) => s.period === period.month);
   const monthly = slips.find((s) => s.kind === 'monthly');
@@ -148,44 +149,47 @@ function monthView() {
         <button type="button" class="btn-secondary" data-new="bonus">新增獎金／禮金</button>
       </div></div>`;
   }
-  const total = slips.reduce((s, x) => s + slipTotals(x).net, 0);
-  let hero;
-  if (monthly) {
-    const t = slipTotals(monthly);
-    const prev = sortedSlips().filter((s) => s.kind === 'monthly' && s.period < monthly.period).at(-1);
-    const d = prev ? t.net - slipTotals(prev).net : null;
-    const info = payInfo(monthly);
-    hero = html`<section class="sal-hero" data-reveal ${revealAttrs()}>
-        <div class="sal-hero-top"><span>${formatMonth(monthly.period)}薪資 · ${info.text}</span>${peek()}</div>
-        <div class="sal-hero-num">${money(t.net)}</div>
-        <div class="sal-hero-sub"><span>應發 <b>${money(t.earn)}</b></span><span>應扣 <b>${money(t.deduct)}</b></span>
-          ${d != null ? html`<span>較上月 <b>${isHidden('salary') ? '****' : `${d > 0 ? '▲ ' : d < 0 ? '▼ ' : ''}${fmt(Math.abs(d))}`}</b></span>` : ''}</div>
-      </section>
-      ${bonuses.length ? html`<p class="field-note">本月含獎金合計實領 ${money(total)}</p>` : ''}
-      <h2 class="sec-h"><span>應發項目</span><button type="button" class="link small" data-slip="${monthly.id}">編輯</button></h2>
-      <div class="list">${lineRows(monthly.lines.filter((l) => l.amount > 0))}</div>
-      ${monthly.lines.some((l) => l.amount < 0)
-        ? html`<h2 class="sec-h">扣除項目</h2><div class="list">${lineRows(monthly.lines.filter((l) => l.amount < 0))}</div>`
-        : ''}
-      <p class="field-note">${info.tx ? `已記入 ${formatShortDate(info.tx.date)} 的收入明細（${info.tx.category}${info.tx.note ? ` · ${info.tx.note}` : ''}）。` : '沒有對應的收入明細。'}${monthly.note ? `　備註：${monthly.note}` : ''}</p>`;
-  } else {
-    hero = html`<section class="sal-hero" data-reveal ${revealAttrs()}>
-        <div class="sal-hero-top"><span>${formatMonth(period.month)} · 獎金／禮金</span>${peek()}</div>
-        <div class="sal-hero-num">${money(total)}</div>
-        <div class="sal-hero-sub"><span>還沒有月薪單</span></div>
-      </section>
-      <div class="actions"><button type="button" class="btn-secondary" data-new="monthly">新增月薪單</button></div>`;
-  }
-  return html`${hero}
+  const mt = monthly ? slipTotals(monthly) : null;
+  const bonusTotal = bonuses.reduce((sum, x) => sum + slipTotals(x).net, 0);
+  const total = (mt ? mt.net : 0) + bonusTotal;
+  const prevMonth = addMonths(period.month, -1);
+  const prevTotal = sortedSlips().some((s) => s.period === prevMonth) ? periodTotal(prevMonth) : null;
+  const d = prevTotal != null ? total - prevTotal : null;
+  const hidden = isHidden('salary');
+
+  return html`<section class="sal-hero" data-reveal ${revealAttrs()}>
+      <div class="sal-hero-top"><span>${formatMonth(period.month)}薪資 · 實領合計</span>${peek()}</div>
+      <div class="sal-hero-num">${money(total)}</div>
+      <div class="sal-hero-sub">
+        ${mt ? html`<span>月薪 <b>${money(mt.net)}</b></span>` : ''}
+        ${bonuses.length ? html`<span>獎金 <b>${money(bonusTotal)}</b></span>` : ''}
+        ${d != null ? html`<span>較上月 <b>${hidden ? '****' : `${d > 0 ? '▲ ' : d < 0 ? '▼ ' : ''}${fmt(Math.abs(d))}`}</b></span>` : ''}
+      </div>
+    </section>
+
+    ${monthly
+      ? html`<h2 class="sec-h"><span>月薪單${payInfo(monthly) ? ` · ${payInfo(monthly)}` : ''}</span><button type="button" class="link small" data-slip="${monthly.id}">編輯</button></h2>
+        <div class="list">
+          <div class="row sum-row"><span class="grow title">應發合計</span><span class="value strong num">${money(mt.earn)}</span></div>
+          ${lineRows(monthly.lines.filter((l) => l.amount > 0))}
+        </div>
+        ${mt.deduct
+          ? html`<div class="list" style="margin-top:var(--s2)">
+              <div class="row sum-row"><span class="grow title">應扣合計</span><span class="value strong num">${hidden ? '****' : `−${fmt(mt.deduct)}`}</span></div>
+              ${lineRows(monthly.lines.filter((l) => l.amount < 0))}
+            </div>`
+          : ''}
+        ${monthly.note ? html`<p class="field-note">備註：${monthly.note}</p>` : ''}`
+      : html`<div class="actions"><button type="button" class="btn-secondary" data-new="monthly">新增月薪單</button></div>`}
+
     ${bonuses.length
-      ? html`<h2 class="sec-h">獎金／禮金</h2><div class="list">${bonuses.map((b) => {
-          const info = payInfo(b);
-          return html`<button type="button" class="row tap" data-slip="${b.id}"><span class="grow"><span class="title">${slipTitle(b)}</span>
-            <span class="detail">${info.text}${info.tx ? ' · 已記入收入' : ''}</span></span>
-            <span class="value strong num inc">${money(slipTotals(b).net)}</span>${icon('chevronRight', 'chev')}</button>`;
-        })}</div>`
+      ? html`<h2 class="sec-h"><span>獎金／禮金</span><span class="num">${money(bonusTotal)}</span></h2>
+        <div class="list">${bonuses.map((b) => html`<button type="button" class="row tap" data-slip="${b.id}"><span class="grow"><span class="title">${slipTitle(b)}</span>
+            ${payInfo(b) ? html`<span class="detail">${payInfo(b)}</span>` : ''}</span>
+            <span class="value strong num inc">${money(slipTotals(b).net)}</span>${icon('chevronRight', 'chev')}</button>`)}</div>`
       : ''}
-    <div class="chips sal-more"><button type="button" data-new="bonus">＋ 這個月的獎金／禮金</button></div>`;
+    <div class="chips sal-more"><button type="button" data-new="bonus">＋ 這個月的獎金／禮金</button></div>
+    <p class="field-note">薪資單只記錄薪資組成，和收支明細互相獨立；發薪時請另外用「＋」記一筆收入。</p>`;
 }
 
 // ---------- 年 ----------
