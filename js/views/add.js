@@ -23,6 +23,11 @@ function rememberDate(date) {
   sticky = { date, at: Date.now() };
 }
 
+/** 通知其他畫面「記一筆選了這一天」（統計頁的每日支出月曆會跳過去） */
+function announceDate(date) {
+  window.dispatchEvent(new CustomEvent('walletlog:date', { detail: date }));
+}
+
 /**
  * openAddSheet({ date })：新增；openAddSheet({ tx })：編輯既有明細；
  * preset = { category, note, amount, payment }：首頁「快速記一筆」預先帶入（仍可修改後再按完成）
@@ -108,7 +113,7 @@ export function openAddSheet({ tx = null, date = stickyDate() || todayStr(), typ
       });
       els.dateInput.addEventListener('change', () => {
         if (els.dateInput.value) f.date = els.dateInput.value;
-        if (!tx) rememberDate(f.date);
+        announceDate(f.date); // 只通知月曆；延續日期要等真的存檔（取消就不記）
         renderDate();
       });
       body.querySelector('.tag-btn').addEventListener('click', () =>
@@ -262,6 +267,7 @@ export function openAddSheet({ tx = null, date = stickyDate() || todayStr(), typ
     };
     store.put('transactions', rec);
     if (!tx) rememberDate(rec.date);
+    announceDate(rec.date);
     const newTags = rec.tags.filter((t) => !s.tags.includes(t));
     store.saveSettings({ lastPayment: rec.payment || s.lastPayment, ...(newTags.length ? { tags: [...s.tags, ...newTags] } : {}) });
     sheet.close();

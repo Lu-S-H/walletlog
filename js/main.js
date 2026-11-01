@@ -9,7 +9,7 @@ import { currentMonth, renderList } from './views/list.js';
 import { renderMore } from './views/more.js';
 import { renderOnboarding } from './views/onboarding.js';
 import { renderSalary } from './views/salary.js';
-import { renderStats } from './views/stats.js';
+import { renderStats, statsSelectedDay } from './views/stats.js';
 
 const TABS = {
   home: { label: '首頁', icon: 'home', render: renderHome },
@@ -106,6 +106,11 @@ fabEl.addEventListener('click', () => {
   const onList = route().tab === 'list';
   const m = onList ? currentMonth() : thisMonth();
   const last = stickyDate();
+  const picked = statsSelectedDay(); // 統計頁月曆選的那一天優先
+  if (picked) {
+    openAddSheet({ date: picked });
+    return;
+  }
   // 在明細頁切到別的月份時，以看的月份為準（上一筆日期不在這個月就不延續）
   const date = last && (!onList || last.startsWith(m)) ? last : m === thisMonth() ? todayStr() : `${m}-01`;
   openAddSheet({ date });

@@ -10,6 +10,7 @@ import { bindRevealToggle, canHide, isHidden, MASK, money } from '../privacy.js'
 import { state } from '../store.js';
 import { bindSegmented } from '../ui.js';
 import { addMonths, dayTitle, fmt, formatMonth, formatMonthDay, html, isValidMonthStr, setHTML, thisMonth, todayStr, weekdayName } from '../util.js';
+import { openAddSheet } from './add.js';
 import { bindTxRows, txRow } from './txrow.js';
 
 const period = { mode: 'month', month: thisMonth(), year: thisMonth().slice(0, 4) };
@@ -22,7 +23,26 @@ const enc = encodeURIComponent;
 const periodYear = () => (period.mode === 'month' ? period.month.slice(0, 4) : period.year);
 const periodName = () => (period.mode === 'month' ? formatMonth(period.month) : `${period.year}年`);
 
+let mounted = null; // 目前顯示中的統計頁 { el, sub }
+
+/** 統計總覽（月）的月曆選了哪一天；右下角「＋」用它當日期 */
+export function statsSelectedDay() {
+  return location.hash === '#stats' && period.mode === 'month' ? calDay : null;
+}
+
+// 記一筆選了日期／儲存時，在統計總覽就把月曆跳到那一天（必要時切換月份）
+window.addEventListener('walletlog:date', (e) => {
+  const d = e.detail;
+  if (location.hash !== '#stats' || !d || !mounted) return;
+  period.mode = 'month';
+  period.month = d.slice(0, 7);
+  calDay = d;
+  trendPick = null;
+  renderStats(mounted.el, mounted.sub);
+});
+
 export function renderStats(el, sub = '') {
+  mounted = { el, sub };
   const [kind, ...rest] = sub.split('/');
   const arg = rest.join('/');
   if (kind === 'g' && arg) groupPage(el, arg);
@@ -263,12 +283,13 @@ function renderCalendar(card, list) {
   const dayItems = calDay ? list.filter((t) => t.date === calDay) : [];
   setHTML(
     card,
-    html`<div class="chart-head"><h2>每日支出</h2><span class="note">點日期看明細</span></div>
+    html`<div class="chart-head"><h2>每日支出</h2><span class="note">${calDay ? '按＋會記在這天' : '點日期看明細'}</span></div>
       ${calendarGrid(month, daily, th, calDay)}
       ${calDay
         ? html`<div class="cal-day"><h3 class="day-h"><span>${formatMonthDay(calDay)} 週${weekdayName(calDay)}</span>
             <span class="num">${dayItems.length ? `支出 ${fmt(dayItems.reduce((s, t) => s + expenseEffect(t), 0))}` : ''}</span></h3>
-            ${dayItems.length ? html`<div class="tx-list">${dayItems.map(txRow)}</div>` : html`<p class="note">這天沒有紀錄</p>`}</div>`
+            ${dayItems.length ? html`<div class="tx-list">${dayItems.map(txRow)}</div>` : html`<p class="note">這天沒有紀錄</p>`}
+            <button type="button" class="btn-secondary cal-add" data-add-day>＋ 記在 ${formatMonthDay(calDay)}</button></div>`
         : ''}`,
   );
   card.querySelector('.cal-grid').addEventListener('click', (e) => {
@@ -279,6 +300,7 @@ function renderCalendar(card, list) {
   });
   const dayEl = card.querySelector('.cal-day');
   if (dayEl) bindTxRows(dayEl);
+  card.querySelector('[data-add-day]')?.addEventListener('click', () => openAddSheet({ date: calDay }));
 }
 
 // ---------- 年度趨勢（支出／收入分組直條） ----------
